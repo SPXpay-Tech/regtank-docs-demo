@@ -1,4 +1,4 @@
-# Regtank Exchange API · documentation experiments
+# Regtank v3 API · documentation experiments
 
 Five different ways to render the same OpenAPI 3.1 spec — Scalar, Redoc, Swagger UI, Stoplight Elements, and a hand-built Stripe-style SPA.
 

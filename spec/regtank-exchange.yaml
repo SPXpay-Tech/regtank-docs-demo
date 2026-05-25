@@ -1,21 +1,22 @@
 openapi: 3.1.0
 info:
-  title: Regtank Exchange API
-  version: "1.13"
-  summary: KYC, KYB and KYT screening service for compliance teams
+  title: Regtank API
+  version: "v3"
+  summary: Onboarding, KYC, KYB and KYT screening service for compliance teams
   description: |
-    The **Regtank Exchange API** lets you submit individuals (KYC), businesses (KYB)
-    and crypto transactions (KYT) for sanctions, PEP and adverse-media screening,
-    and receive results through both polling and webhook delivery.
+    The **Regtank API** lets you submit individuals (KYC), businesses (KYB)
+    and crypto wallets (KYT) for sanctions, PEP and adverse-media screening,
+    plus run digital onboarding (liveness + IDV) for new customers — with
+    results delivered through both polling and webhook callbacks.
 
     ## Quickstart
 
     1. Obtain a `client_id` / `client_secret` pair from Regtank support.
     2. Exchange them for an `access_token` via [`POST /oauth/token`](#tag/Authentication).
-    3. Submit a screening request to one of the `*/exchange/input` endpoints
-       (`v2` returns a `systemId` you can poll).
-    4. Poll the matching `*/exchange/query` endpoint with `systemId` or
-       `referenceId`, **or** configure a webhook callback URL to be pushed updates.
+    3. Submit a request to one of the `/v3/.../input` or `/v3/.../request` endpoints.
+    4. Poll the matching `/v3/.../query` endpoint with `requestId` (or `referenceId`),
+       **or** configure a webhook callback URL in the Regtank portal to receive
+       pushed updates.
 
     ## Two server hosts
 
@@ -24,16 +25,16 @@ info:
     | Purpose | Host |
     |---|---|
     | Issue OAuth2 tokens | `crm-server.regtank.com` |
-    | Submit screening jobs / query results | `{tenant}-server.regtank.com` (per-customer) |
+    | Run onboarding, screening, queries | `{client-portal-server}` (per-customer subdomain) |
 
-    Use the OAuth host only for `/oauth/token`; everything else hits your
+    The OAuth host only serves `/oauth/token`; everything else hits your
     customer-specific portal host.
 
-    ## Why `v2`?
+    ## API versions
 
-    `v2` of every `*/exchange/input` endpoint returns the `systemId` directly in
-    the body. With `v1` you only get a `200 OK` and must look the record up by
-    `referenceId`. **New integrations should use `v2`.**
+    All public endpoints documented here are on the **`v3`** path prefix. Earlier
+    versions exist in production but are frozen and not recommended for new
+    integrations.
   contact:
     name: Regtank Support
     url: https://regtank.com
@@ -43,46 +44,50 @@ info:
 servers:
   - url: https://crm-server.regtank.com
     description: Production — OAuth token endpoint only
-  - url: https://crm-staging-server.regtank.com
-    description: Staging — OAuth token endpoint only
-  - url: https://{tenant}-server.regtank.com
-    description: Production — per-tenant Exchange API host
+  - url: https://{clientPortal}.regtank.com
+    description: Production — per-customer portal host (everything except auth)
     variables:
-      tenant:
-        default: spxpay
-        description: Your company subdomain (provided at onboarding)
-  - url: https://{tenant}-staging-server.regtank.com
-    description: Staging — per-tenant Exchange API host
+      clientPortal:
+        default: spxpay-server
+        description: Your client-portal subdomain (provided at onboarding)
+  - url: https://{clientPortal}-staging.regtank.com
+    description: Staging — per-customer portal host
     variables:
-      tenant:
+      clientPortal:
         default: spxpay
-        description: Your company subdomain (provided at onboarding)
+        description: Your client-portal subdomain (provided at onboarding)
 
 tags:
   - name: Authentication
     description: |
-      All Exchange API calls require an OAuth2 access token.
-      Tokens are valid for one hour — refresh proactively.
+      All Regtank API calls require an OAuth2 access token.
+      Tokens are JWT bearer tokens valid for **up to 1 hour** — refresh proactively.
+  - name: Onboarding
+    description: |
+      Digital onboarding — issue a one-time link your end-user opens to complete
+      liveness check, identity-document upload and IDV. The verifyLink expires in 24h.
   - name: KYC (Acuris)
     description: |
       Screen an individual against Acuris (formerly C6) PEP, sanctions and
-      adverse-media lists.
+      adverse-media lists. Submit → score → optionally enable ongoing monitoring.
   - name: KYC (Dow Jones)
     description: |
       Screen an individual against Dow Jones Risk & Compliance data.
-      Same shape as Acuris KYC, but on a separate database.
+      Same shape as Acuris KYC on a separate database, with additional
+      partial-date matching parameters.
   - name: KYB
     description: |
-      Screen a business — looks up the entity and its UBOs / directors / shareholders.
+      Screen a business — looks up the entity, its directors and shareholders
+      (individual + corporate UBOs).
   - name: KYT
     description: |
       Screen a crypto wallet address against transaction-graph risk data.
-      Supports BTC, BCH, BNB, LTC, ETH.
+      Supports **BTC, BCH, BNB, LTC, ETH**.
   - name: Webhooks
     description: |
       Configure a callback URL in the Regtank portal to receive push updates
-      when a record changes status, hits a new sanctions list, or shows a new
-      on-chain transaction.
+      when a record changes status, hits a new sanctions list, completes
+      onboarding, or shows a new on-chain transaction.
 
 paths:
   /oauth/token:
@@ -91,915 +96,1028 @@ paths:
       summary: Exchange client credentials for an access token
       description: |
         Exchange your `client_id` / `client_secret` for an OAuth2 access token.
-        Tokens are JWT bearer tokens valid for **1 hour**.
+        Tokens are JWT bearer tokens valid for **up to 1 hour**.
 
-        Send the body as either `application/x-www-form-urlencoded` or as a
-        query string — both are accepted.
+        Body can be sent as `multipart/form-data` or `application/x-www-form-urlencoded`.
       operationId: getAccessToken
       security: []
       x-codeSamples:
         - lang: cURL
+          label: cURL
           source: |
             curl -X POST https://crm-server.regtank.com/oauth/token \
-              -d "grant_type=client_credentials" \
-              -d "client_id=$REGTANK_CLIENT_ID" \
-              -d "client_secret=$REGTANK_CLIENT_SECRET"
+              -F grant_type=client_credentials \
+              -F client_id=$CLIENT_ID \
+              -F client_secret=$CLIENT_SECRET
         - lang: Python
+          label: Python
           source: |
-            import os, requests
-
-            tok = requests.post(
+            import requests
+            r = requests.post(
                 "https://crm-server.regtank.com/oauth/token",
                 data={
                     "grant_type": "client_credentials",
-                    "client_id": os.environ["REGTANK_CLIENT_ID"],
-                    "client_secret": os.environ["REGTANK_CLIENT_SECRET"],
+                    "client_id": CLIENT_ID,
+                    "client_secret": CLIENT_SECRET,
                 },
-            ).json()
-            access_token = tok["access_token"]
+            )
+            token = r.json()["access_token"]
         - lang: JavaScript
+          label: JavaScript
           source: |
-            const tok = await fetch('https://crm-server.regtank.com/oauth/token', {
-              method: 'POST',
-              body: new URLSearchParams({
-                grant_type: 'client_credentials',
-                client_id: process.env.REGTANK_CLIENT_ID,
-                client_secret: process.env.REGTANK_CLIENT_SECRET,
-              }),
-            }).then(r => r.json());
-        - lang: Java
-          source: |
-            HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://crm-server.regtank.com/oauth/token"))
-                .POST(BodyPublishers.ofString(
-                    "grant_type=client_credentials"
-                    + "&client_id=" + System.getenv("REGTANK_CLIENT_ID")
-                    + "&client_secret=" + System.getenv("REGTANK_CLIENT_SECRET")))
-                .build();
+            const body = new URLSearchParams({
+              grant_type: "client_credentials",
+              client_id: process.env.CLIENT_ID,
+              client_secret: process.env.CLIENT_SECRET,
+            });
+            const res = await fetch("https://crm-server.regtank.com/oauth/token", {
+              method: "POST", body
+            });
+            const { access_token } = await res.json();
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/TokenRequest"
+              $ref: '#/components/schemas/TokenRequest'
             examples:
-              clientCredentials:
+              clientCreds:
                 summary: Client credentials grant
                 value:
                   grant_type: client_credentials
-                  client_id: a2801714-0e34-4fbb-be74-30e25c544b73
-                  client_secret: e5555bcff97f86a4d17209443a6456b5
+                  client_id: 3b9ca6fc-9dca-48cf-b762-c963430bb06f
+                  client_secret: f74c33246d3d1f4bb1cdea678c274377
       responses:
-        "200":
-          description: Access token issued
+        '200':
+          description: Token issued
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenResponse"
-              examples:
-                success:
-                  value:
-                    access_token: eyJhbGciOiJSUzI1NiIs...
-                    token_type: bearer
-                    expires_in: 3599
-                    scope: read write
-                    sub: a2801714-0e34-4fbb-be74-30e25c544b73
-                    jti: f518893b-b4ca-4ad1-8a7a-dd5c5524d909
-        "400":
-          $ref: "#/components/responses/BadRequest"
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type: bearer
+                expires_in: 3599
+                scope: "read write"
+                sub: "3b9ca6fc-9dca-48cf-b762-c963430bb06f"
+                jti: "9bdd768f-b568-4be8-a6b4-33cbd7785c30"
+        '400':
+          description: Bad request — invalid client or unsupported grant
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthError'
               examples:
-                badCredentials:
-                  summary: Missing client_secret
+                invalidClient:
+                  summary: Bad client credentials
                   value:
                     error: invalid_client
-                    error_description: Bad client credentials
-                badGrant:
+                    error_description: Bad Client Credentials
+                unsupportedGrant:
                   summary: Unsupported grant type
                   value:
                     error: unsupported_grant_type
-                    error_description: "Unsupported grant type: notclient_credentials"
+                    error_description: "Unsupported grant type: password"
 
-  /v1/kyc/exchange/input:
+  /v3/onboarding/indv/request:
     post:
-      tags: [KYC (Acuris)]
-      summary: Submit a KYC screening (v1, legacy)
+      tags: [Onboarding]
+      summary: Issue an individual onboarding link
       description: |
-        Submit an individual for Acuris KYC screening.
-
-        > **Use `v2` for new integrations** — it returns the `systemId` directly,
-        > which `v1` does not.
-      operationId: submitKycV1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/KycRequest"
-            examples:
-              minimal:
-                value:
-                  surname: Smith
-                  forename: John
-                  enableReScreening: true
-      responses:
-        "200":
-          description: Request accepted — query later by `referenceId`.
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /v2/kyc/exchange/input:
-    post:
-      tags: [KYC (Acuris)]
-      summary: Submit a KYC screening (v2, recommended)
-      description: |
-        Submit an individual for Acuris KYC screening. **Recommended.**
-
-        Returns the `systemId` immediately so you can poll for results without
-        also needing a `referenceId`.
-      operationId: submitKycV2
+        Generate a one-time `verifyLink` for an end-user to complete liveness
+        check + ID document upload + facial matching. Link expires in 24 hours.
+      operationId: requestIndvOnboarding
       x-codeSamples:
         - lang: cURL
+          label: cURL
           source: |
-            curl -X POST https://$TENANT-server.regtank.com/v2/kyc/exchange/input \
+            curl -X POST https://$PORTAL.regtank.com/v3/onboarding/indv/request \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d '{
-                "surname": "Smith",
-                "forename": "John",
-                "dateOfBirth": "1980-09-30",
-                "nationality": "US",
-                "referenceId": "user-001",
-                "enableOnGoingMonitoring": true
+                "email": "jack@regtank.com",
+                "surname": "Wang",
+                "forename": "Jack",
+                "countryOfResidence": "US",
+                "idType": "IDENTITY",
+                "referenceId": "id00000001"
               }'
-            # → KYC00121
-        - lang: Python
-          source: |
-            system_id = requests.post(
-                f"https://{tenant}-server.regtank.com/v2/kyc/exchange/input",
-                headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "surname": "Smith",
-                    "forename": "John",
-                    "dateOfBirth": "1980-09-30",
-                    "nationality": "US",
-                    "referenceId": "user-001",
-                    "enableOnGoingMonitoring": True,
-                },
-            ).text
-            # "KYC00121"
-        - lang: JavaScript
-          source: |
-            const systemId = await fetch(
-              `https://${tenant}-server.regtank.com/v2/kyc/exchange/input`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  surname: 'Smith',
-                  forename: 'John',
-                  referenceId: 'user-001',
-                  enableOnGoingMonitoring: true,
-                }),
-              },
-            ).then(r => r.text());
-            // "KYC00121"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/KycRequest"
+              $ref: '#/components/schemas/IndvOnboardingRequest'
+            example:
+              email: "jack@regtank.com"
+              surname: "Wang"
+              forename: "Jack"
+              countryOfResidence: "US"
+              idType: "IDENTITY"
+              referenceId: "id00000001"
+      responses:
+        '200':
+          description: Onboarding link issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndvOnboardingResponse'
+              example:
+                requestId: "LD00001"
+                verifyLink: "https://companyname-onboarding.regtank.com/?token=..."
+                expiredIn: 86400
+                timestamp: "2025-08-18T03:40:27.417+00:00"
+        '400': { $ref: '#/components/responses/InsufficientCredit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v3/kyc/input:
+    post:
+      tags: [KYC (Acuris)]
+      summary: Submit a KYC screening (Acuris)
+      description: |
+        Submit an individual against Acuris PEP, sanctions and adverse-media
+        lists. Returns the `requestId` directly so you can poll or correlate
+        webhook events.
+      operationId: submitKyc
+      x-codeSamples:
+        - lang: cURL
+          label: cURL
+          source: |
+            curl -X POST https://$PORTAL.regtank.com/v3/kyc/input \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @kyc-john-smith.json
+        - lang: Python
+          label: Python
+          source: |
+            r = requests.post(
+                f"https://{portal}.regtank.com/v3/kyc/input",
+                headers={"Authorization": f"Bearer {token}"},
+                json={
+                    "forename": "John",
+                    "surname": "Smith",
+                    "dateOfBirth": "1980-09-30",
+                    "nationality": "US",
+                    "referenceId": "id00000001",
+                },
+            )
+            request_id = r.json()["requestId"]
+        - lang: Java
+          label: Java
+          source: |
+            HttpRequest req = HttpRequest.newBuilder()
+              .uri(URI.create("https://" + portal + ".regtank.com/v3/kyc/input"))
+              .header("Authorization", "Bearer " + token)
+              .header("Content-Type", "application/json")
+              .POST(BodyPublishers.ofString(body))
+              .build();
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KycRequest'
             examples:
               full:
-                summary: Full request with all fields
+                summary: Full request — all major fields
                 value:
-                  surname: Smith
-                  middlename: Junior
-                  forename: John
-                  gender: MALE
+                  forename: "John"
+                  surname: "Smith"
+                  middleName: "Junior"
+                  gender: "MALE"
+                  address1: "21 Ang Mo Kio St"
+                  address2: "13-25"
+                  countryOfResidence: "SG"
+                  dateOfBirth: "1980-09-30"
                   enableReScreening: false
                   enableOnGoingMonitoring: false
-                  dateOfBirth: "1980-09-30"
-                  assignee: admin@regtank.com
-                  address1: 21 Ang Mo Kio St
-                  address2: 13-25
-                  countryOfResidence: SG
-                  email: john.smith@abc.com
-                  governmentIdNumber: A4059456
-                  idIssuingCountry: US
-                  nationality: US
+                  assignee: "admin@regtank.com"
+                  email: "john.smith@abc.com"
+                  governmentIdNumber: "A4059456"
+                  idIssuingCountry: "US"
+                  nationality: "US"
                   phone: "+65-98504563"
-                  placeOfBirth: US
-                  referenceId: john.smith@abc.com
-                  yearOfBirth: 1980
+                  placeOfBirth: "US"
+                  referenceId: "id00000001"
+                  industry: "ACCOUNTING"
+                  occupation: "CHIEF_EXECUTIVES_SENIOR_OFFICIALS_AND_LEGISLATORS"
+                  tags: ["Singpass", "ACRA"]
+                  groupIds: [1, 2]
       responses:
-        "200":
-          description: Returns the assigned `systemId`.
+        '200':
+          description: Screening accepted — requestId returned
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: KYC00121
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                $ref: '#/components/schemas/RequestIdResponse'
+              example:
+                requestId: "KYC00001"
+        '400': { $ref: '#/components/responses/InsufficientCredit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
-  /v1/kyc/exchange/query:
+  /v3/kyc/query:
     get:
       tags: [KYC (Acuris)]
       summary: Query a KYC record
       description: |
-        Fetch a KYC record by `systemId`, `referenceId`, or both.
-        At least one of the two parameters is required.
-
-        If both are supplied, the result is the **intersection** —
-        records that match both.
+        Look up a KYC submission by either `requestId` (returned from
+        `/v3/kyc/input`) or `referenceId` (your own identifier).
       operationId: queryKyc
       parameters:
-        - name: systemId
-          in: query
-          schema: { type: string, example: KYC00001 }
-        - name: referenceId
-          in: query
-          schema: { type: string, example: john.smith@example.com }
+        - in: query
+          name: requestId
+          schema: { type: string }
+          description: Returned by `/v3/kyc/input`
+        - in: query
+          name: referenceId
+          schema: { type: string }
+          description: Your own correlation ID
       responses:
-        "200":
-          description: List of matching KYC records (empty list if no match).
+        '200':
+          description: Current state of the screening
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/KycRecord" }
-        "400":
-          description: Both `systemId` and `referenceId` empty.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+                $ref: '#/components/schemas/KycRecord'
               example:
-                status: BAD_REQUEST
-                message: Either Reference ID or System ID required.
-                error_code: 400
-                timestamp: "2026-02-05T08:47:20.820+00:00"
-                path: /v1/kyc/exchange/query
-        "401": { $ref: "#/components/responses/Unauthorized" }
+                requestId: "KYC06407"
+                referenceId: "id00000001"
+                messageStatus: "DONE"
+                status: "Score Generated"
+                assignee: "compliance-officer@regtank.com"
+                modifiedBy: "system"
+                modifiedOn: "2025-08-18T03:40:27.417+00:00"
+                createdBy: "api"
+                createdOn: "2025-08-18T03:36:11.103+00:00"
+                individualRiskScore:
+                  score: 33.0
+                  level: "Medium Risk"
+                  rescreeningFreqInMonth: 12
+                  riskSettingId: 7
+                tags: ["Singpass", "ACRA"]
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
-  /v1/djkyc/exchange/input:
+  /v3/kyc/scoring:
     post:
-      tags: [KYC (Dow Jones)]
-      summary: Submit a Dow Jones KYC screening (v1, legacy)
-      description: |
-        Screen an individual against the **Dow Jones Risk & Compliance**
-        dataset. Same fields as Acuris KYC.
-      operationId: submitDjKycV1
+      tags: [KYC (Acuris)]
+      summary: Generate a risk score
+      description: Force the risk-score generation step for a KYC record (normally automatic).
+      operationId: generateKycScore
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/KycRequest"
+              type: object
+              required: [requestId]
+              properties:
+                requestId: { type: string, example: "KYC00001" }
       responses:
-        "200": { description: Request accepted. }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /v2/djkyc/exchange/input:
-    post:
-      tags: [KYC (Dow Jones)]
-      summary: Submit a Dow Jones KYC screening (v2, recommended)
-      description: Returns `systemId` (prefixed `DJKYC`) directly.
-      operationId: submitDjKycV2
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/KycRequest" }
-      responses:
-        "200":
-          description: Returns the assigned `systemId`.
-          content:
-            text/plain:
-              schema: { type: string, example: DJKYC00121 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /v1/djkyc/exchange/query:
-    get:
-      tags: [KYC (Dow Jones)]
-      summary: Query a Dow Jones KYC record
-      description: |
-        Same semantics as `/v1/kyc/exchange/query` — pass at least one of
-        `systemId` (prefixed `DJKYC`) or `referenceId`.
-      operationId: queryDjKyc
-      parameters:
-        - name: systemId
-          in: query
-          schema: { type: string, example: DJKYC00001 }
-        - name: referenceId
-          in: query
-          schema: { type: string }
-      responses:
-        "200":
-          description: Matching DJKYC records.
+        '200':
+          description: Score generated
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/KycRecord" }
-
-  /v1/kyt/exchange/input:
-    post:
-      tags: [KYT]
-      summary: Submit a KYT screening (v1, legacy)
-      operationId: submitKytV1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/KytRequest" }
-      responses:
-        "200": { description: Request accepted. }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /v2/kyt/exchange/input:
-    post:
-      tags: [KYT]
-      summary: Submit a KYT screening (v2, recommended)
-      description: |
-        Submit a crypto wallet address for transaction-graph risk screening.
-
-        Supports `BTC`, `BCH`, `BNB`, `LTC`, `ETH`.
-      operationId: submitKytV2
-      x-codeSamples:
-        - lang: cURL
-          source: |
-            curl -X POST https://$TENANT-server.regtank.com/v2/kyt/exchange/input \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "asset": "BTC",
-                "address": "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa",
-                "referenceId": "user-001",
-                "ongoingMonitoring": { "riskScoreChange": true, "newTransaction": true },
-                "webHookResponse": true
-              }'
-            # → KYT00011
-        - lang: Python
-          source: |
-            requests.post(
-                f"https://{tenant}-server.regtank.com/v2/kyt/exchange/input",
-                headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "asset": "BTC",
-                    "address": "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa",
-                    "referenceId": "user-001",
-                    "ongoingMonitoring": {"riskScoreChange": True, "newTransaction": True},
-                    "webHookResponse": True,
-                },
-            ).text  # "KYT00011"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/KytRequest" }
-            examples:
-              btc:
-                summary: BTC address
-                value:
-                  asset: BTC
-                  address: 3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa
-                  referenceId: john.smith@example.com
-                  assignee: peter.lee@compliance.com
-                  ongoingMonitoring:
-                    riskScoreChange: true
-                    newTransaction: true
-                  webHookResponse: true
-      responses:
-        "200":
-          description: Returns the assigned `systemId` (prefixed `KYT`).
-          content:
-            text/plain:
-              schema: { type: string, example: KYT00011 }
-        "400":
-          description: Bad request.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+                $ref: '#/components/schemas/RiskScore'
               example:
-                status: BAD_REQUEST
-                message: INVALID_PARAMETERS
-                error_code: 400
-                timestamp: "2026-02-05T08:47:20.820+00:00"
-                errors:
-                  asset: This field is required
-                  kytInputDto: Invalid Wallet Address
+                score: 33.0
+                level: "Medium Risk"
+                rescreeningFreqInMonth: 12
+                riskSettingId: 7
 
-  /v1/kyt/exchange/query:
-    get:
-      tags: [KYT]
-      summary: Query a KYT record
-      operationId: queryKyt
-      parameters:
-        - name: systemId
-          in: query
-          schema: { type: string, example: KYT00001 }
-        - name: referenceId
-          in: query
-          schema: { type: string }
+  /v3/kyc/ongoing-monitoring:
+    post:
+      tags: [KYC (Acuris)]
+      summary: Enable / disable ongoing monitoring
+      description: |
+        Turn ongoing-monitoring on or off for an existing KYC record. While
+        enabled, Regtank rescreens the subject on the configured cadence and
+        fires a webhook when a new hit appears.
+      operationId: setKycOngoingMonitoring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, enabled]
+              properties:
+                requestId: { type: string, example: "KYC00001" }
+                enabled:   { type: boolean, example: true }
       responses:
-        "200":
-          description: Matching KYT records.
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema: { type: object }
+
+  /v3/kyc/updateTags:
+    put:
+      tags: [KYC (Acuris)]
+      summary: Replace tags on a KYC record
+      operationId: updateKycTags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, tags]
+              properties:
+                requestId: { type: string, example: "KYC00001" }
+                tags:
+                  type: array
+                  items: { type: string }
+                  example: ["Singpass", "ACRA", "Internal-Risk-OK"]
+      responses:
+        '200':
+          description: Tags updated
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/KytRecord" }
+                type: object
+                properties:
+                  updatedTags:
+                    type: array
+                    items: { type: string }
 
-  /v1/kyb/exchange/input:
+  /v3/djkyc/input:
     post:
-      tags: [KYB]
-      summary: Submit a KYB screening (v1, legacy)
-      operationId: submitKybV1
+      tags: [KYC (Dow Jones)]
+      summary: Submit a KYC screening (Dow Jones)
+      description: |
+        Mirror of `/v3/kyc/input` but screened against Dow Jones Risk &
+        Compliance. Accepts additional partial-date fields: `monthOfBirth`,
+        `yearOfBirth`, `strictDateMatch`, `yearOfBirthFrom`, `yearOfBirthTo`,
+        plus `profileNotes` and `occupationTitle`.
+      operationId: submitDjKyc
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/KybRequest" }
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/KycRequest'
+                - type: object
+                  properties:
+                    monthOfBirth:     { type: integer, example: 9 }
+                    yearOfBirth:      { type: integer, example: 1980 }
+                    strictDateMatch:  { type: boolean, example: false }
+                    yearOfBirthFrom:  { type: integer, example: 1978 }
+                    yearOfBirthTo:    { type: integer, example: 1982 }
+                    profileNotes:     { type: string }
+                    occupationTitle:  { type: string }
       responses:
-        "200": { description: Request accepted. }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        '200':
+          description: Screening accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+              example:
+                requestId: "DJKYC00001"
 
-  /v2/kyb/exchange/input:
+  /v3/kyb/input:
     post:
       tags: [KYB]
-      summary: Submit a KYB screening (v2, recommended)
-      description: Screen a business entity and its associated parties.
-      operationId: submitKybV2
+      summary: Submit a KYB screening
+      description: |
+        Submit a business for screening. Director and shareholder records can
+        be attached after the initial submit via the `add-*` endpoints below.
+      operationId: submitKyb
       x-codeSamples:
         - lang: cURL
+          label: cURL
           source: |
-            curl -X POST https://$TENANT-server.regtank.com/v2/kyb/exchange/input \
+            curl -X POST https://$PORTAL.regtank.com/v3/kyb/input \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{
-                "entityName": "ACME Capital Pte Ltd",
-                "registrationNumber": "201912345A",
-                "countryOfRegistration": "SG",
-                "referenceId": "acme-001"
-              }'
-            # → KYB00212
-        - lang: Python
-          source: |
-            requests.post(
-                f"https://{tenant}-server.regtank.com/v2/kyb/exchange/input",
-                headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "entityName": "ACME Capital Pte Ltd",
-                    "registrationNumber": "201912345A",
-                    "countryOfRegistration": "SG",
-                    "referenceId": "acme-001",
-                },
-            ).text  # "KYB00212"
+              -d @kyb-acme-corp.json
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/KybRequest" }
-            examples:
-              full:
-                value:
-                  entityName: ACME Capital Pte Ltd
-                  registrationNumber: 201912345A
-                  countryOfRegistration: SG
-                  referenceId: acme-capital-001
-                  assignee: kyb@compliance.com
-                  enableReScreening: true
-                  enableOnGoingMonitoring: false
+            schema:
+              $ref: '#/components/schemas/KybRequest'
+            example:
+              businessName: "ACME Corporation Pte Ltd"
+              businessIdNumber: "201712345A"
+              address1: "1 Raffles Place"
+              address2: "#20-61, Tower 2"
+              sizeOfTheCompany: "MEDIUM"
+              email: "compliance@acme.com"
+              phone: "+65-65551234"
+              website: "https://acme.com"
+              referenceId: "biz00000001"
+              natureOfBusiness: "FINANCIAL_SERVICES"
+              companyType: "PRIVATE_LIMITED"
+              countryOfHeadQuarter: "SG"
+              countryOfIncorporation: "SG"
+              dateOfIncorporation: "2017-04-15"
+              assignee: "kyb-officer@regtank.com"
+              relationship: "CUSTOMER"
+              enableReScreening: false
+              enableOnGoingMonitoring: true
+              operatingCountry: ["SG", "HK", "US"]
+              tags: ["ACRA"]
+              groupIds: [3]
       responses:
-        "200":
-          description: Returns the assigned `systemId` (prefixed `KYB`).
+        '200':
+          description: KYB request accepted
           content:
-            text/plain:
-              schema: { type: string, example: KYB00212 }
-        "400": { $ref: "#/components/responses/BadRequest" }
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+              example:
+                requestId: "KYB00001"
 
-  /v1/kyb/exchange/query:
+  /v3/kyb/query:
     get:
       tags: [KYB]
       summary: Query a KYB record
       operationId: queryKyb
       parameters:
-        - name: systemId
-          in: query
-          schema: { type: string, example: KYB003456 }
-        - name: referenceId
-          in: query
+        - in: query
+          name: requestId
+          schema: { type: string }
+        - in: query
+          name: referenceId
           schema: { type: string }
       responses:
-        "200":
-          description: Matching KYB records.
+        '200':
+          description: Current state of the KYB record
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/KybRecord" }
+                $ref: '#/components/schemas/KybRecord'
+
+  /v3/kyb/scoring:
+    post:
+      tags: [KYB]
+      summary: Generate a risk score for a KYB record
+      operationId: generateKybScore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId]
+              properties:
+                requestId: { type: string, example: "KYB00001" }
+      responses:
+        '200':
+          description: Score generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScore'
+
+  /v3/kyb/add-director:
+    post:
+      tags: [KYB]
+      summary: Attach a director to a KYB record
+      description: |
+        Attach a director (must already exist as a KYC `requestId`) to a
+        previously submitted KYB record.
+      operationId: addKybDirector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, kycId]
+              properties:
+                requestId:   { type: string, example: "KYB00001", description: "KYB requestId" }
+                kycId:       { type: string, example: "KYC00042", description: "Director's KYC requestId" }
+                designation: { type: string, example: "Director" }
+                remark:      { type: string }
+      responses:
+        '200':
+          description: Director attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+
+  /v3/kyb/add-individual-shareholder:
+    post:
+      tags: [KYB]
+      summary: Attach an individual shareholder to a KYB record
+      operationId: addKybIndividualShareholder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, kycId, percentOfShare]
+              properties:
+                requestId:      { type: string, example: "KYB00001" }
+                kycId:          { type: string, example: "KYC00042" }
+                percentOfShare: { type: number, format: float, example: 25.5 }
+                remark:         { type: string }
+      responses:
+        '200':
+          description: Shareholder attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+
+  /v3/kyb/add-business-shareholder:
+    post:
+      tags: [KYB]
+      summary: Attach a business (corporate) shareholder to a KYB record
+      operationId: addKybBusinessShareholder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, kybId, percentOfShare]
+              properties:
+                requestId:      { type: string, example: "KYB00001" }
+                kybId:          { type: string, example: "KYB00007", description: "Corporate shareholder's own KYB requestId" }
+                percentOfShare: { type: number, format: float, example: 51.0 }
+                remark:         { type: string }
+      responses:
+        '200':
+          description: Corporate shareholder attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+
+  /v3/kyt/input:
+    post:
+      tags: [KYT]
+      summary: Submit a KYT screening
+      description: |
+        Submit a crypto wallet address for transaction-graph risk screening.
+        Supported assets: **BTC, BCH, BNB, LTC, ETH**.
+      operationId: submitKyt
+      x-codeSamples:
+        - lang: cURL
+          label: cURL
+          source: |
+            curl -X POST https://$PORTAL.regtank.com/v3/kyt/input \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "address": "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa",
+                "asset": "BTC",
+                "referenceId": "id00000001",
+                "assignee": "user@regtank.com",
+                "riskScoreChange": true,
+                "newTransaction": true
+              }'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KytRequest'
+            examples:
+              btc:
+                summary: BTC address
+                value:
+                  address: "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa"
+                  asset: "BTC"
+                  referenceId: "id00000001"
+                  assignee: "user@regtank.com"
+                  riskScoreChange: true
+                  newTransaction: true
+              eth:
+                summary: ETH address
+                value:
+                  address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+                  asset: "ETH"
+                  referenceId: "wallet-005"
+      responses:
+        '200':
+          description: KYT request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestIdResponse'
+              example:
+                requestId: "KYT00001"
+        '400': { $ref: '#/components/responses/InsufficientCredit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v3/kyt/query:
+    get:
+      tags: [KYT]
+      summary: Query a KYT record
+      operationId: queryKyt
+      parameters:
+        - in: query
+          name: requestId
+          schema: { type: string }
+        - in: query
+          name: referenceId
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current state of the KYT screening
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KytRecord'
 
 webhooks:
-  kycUpdated:
+  kycNotification:
     post:
       tags: [Webhooks]
       summary: "Webhook: KYC record updated"
       description: |
-        Fired when a KYC record changes status, hits a new sanctions list,
-        or completes ongoing monitoring.
+        Fired whenever a KYC record changes status — e.g. moves from
+        `Unresolved` → `Score Generated`, or a hit appears via ongoing
+        monitoring.
 
-        ### Signature
-
-        Each webhook is signed with `HMAC-SHA256` using your shared secret.
-        The signature is in the `X-Regtank-Signature` header. Recompute it
-        as `HMAC-SHA256(secret, timestamp + "." + raw_body)` and reject
-        webhooks whose signature does not match or whose timestamp is
-        > 5 minutes old.
-
-        ### Retries
-
-        Failed deliveries (non-2xx response or timeout > 10 s) are retried with
-        exponential backoff: **1 m, 5 m, 30 m, 2 h, 12 h** — then dropped.
+        **Status values:** `Unresolved`, `No Match`, `Positive Match`,
+        `Score Generated`, `Approved`, `Rejected`, `Terminated`.
+      operationId: onKycNotification
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/WebhookKyc" }
+            schema:
+              $ref: '#/components/schemas/KycNotification'
             example:
-              eventType: KYC_UPDATED
-              systemId: KYC00121
-              referenceId: john.smith@example.com
-              status: COMPLETED
-              riskLevel: HIGH
-              riskScore: 87
-              hitLists: [PEP, SANCTIONS_OFAC]
-              updatedAt: "2026-05-26T10:00:00Z"
+              requestId: "KYC06407"
+              referenceId: "id00000001"
+              riskScore: "33.0"
+              riskLevel: "Medium Risk"
+              status: "Score Generated"
+              messageStatus: "DONE"
+              possibleMatchCount: 10
+              blacklistedMatchCount: 12
+              assignee: ""
+              timestamp: "2025-08-18T03:40:27.417+00:00"
+              onboardingId: "LD58043"
+              tags: []
       responses:
-        "200":
-          description: Acknowledge receipt with a 2xx status.
+        '200':
+          description: Acknowledged by your callback server
 
-  kytUpdated:
+  kytNotification:
     post:
       tags: [Webhooks]
       summary: "Webhook: KYT transaction event"
-      description: Fired when a monitored wallet sees a new transaction or its risk score changes.
+      description: |
+        Fired when either a new transaction lands on a monitored wallet
+        (`newTransaction: true`) or the wallet's risk score changes
+        (`riskScoreChange: true`).
+      operationId: onKytNotification
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/WebhookKyt" }
+            schema:
+              $ref: '#/components/schemas/KytNotification'
             example:
-              eventType: KYT_NEW_TRANSACTION
-              systemId: KYT00011
-              referenceId: jordan@regtank.com
-              riskLevel: MEDIUM
-              riskScore: 55
-              transaction:
-                hash: "0x4a9e..."
-                amount: "1.2345"
-                asset: BTC
-                timestamp: "2026-05-26T09:55:12Z"
+              requestId: "KYT00001"
+              referenceId: "id00000001"
+              address: "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa"
+              asset: "BTC"
+              riskScore: "78.0"
+              riskLevel: "High Risk"
+              eventType: "RISK_SCORE_CHANGED"
+              timestamp: "2025-08-18T04:12:01.012+00:00"
       responses:
-        "200":
-          description: Acknowledge receipt.
+        '200':
+          description: Acknowledged
+
+  indvOnboardingNotification:
+    post:
+      tags: [Webhooks]
+      summary: "Webhook: Individual onboarding completed"
+      description: |
+        Fired when an end-user completes the verifyLink flow — liveness check,
+        ID document upload, and (optional) facial matching all done.
+      operationId: onIndvOnboardingNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndvOnboardingNotification'
+            example:
+              requestId: "LD58043"
+              referenceId: "id00000001"
+              status: "COMPLETED"
+              authenticityResult: "AUTHENTIC"
+              livenessResult: "PASS"
+              facialMatchScore: 0.97
+              timestamp: "2025-08-18T03:36:11.103+00:00"
+      responses:
+        '200':
+          description: Acknowledged
 
 components:
   securitySchemes:
-    OAuth2:
-      type: oauth2
-      description: |
-        OAuth2 client-credentials grant. Token endpoint is on the OAuth host
-        (`crm-server.regtank.com`).
-      flows:
-        clientCredentials:
-          tokenUrl: https://crm-server.regtank.com/oauth/token
-          scopes:
-            read: Read access to your KYC/KYB/KYT records
-            write: Submit new screening requests
-    BearerAuth:
+    bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: |
-        Pass the JWT obtained from `/oauth/token` as
-        `Authorization: Bearer <token>`. Expires after 1 hour.
+        Use the `access_token` returned by `POST /oauth/token` as a Bearer
+        token in the `Authorization` header.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid `Authorization` header
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:             { type: string, example: "No Auth" }
+              error_description: { type: string }
+    InsufficientCredit:
+      description: Your account does not have enough credit to run this screening
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:             { type: string, example: "Insufficient Credit" }
+              error_description: { type: string }
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:             { type: string, example: "Too Many Requests" }
+              error_description: { type: string }
 
   schemas:
+
     TokenRequest:
       type: object
       required: [grant_type, client_id, client_secret]
       properties:
-        grant_type:
-          type: string
-          enum: [client_credentials]
-          example: client_credentials
-        client_id:
-          type: string
-          format: uuid
-          example: a2801714-0e34-4fbb-be74-30e25c544b73
-        client_secret:
-          type: string
-          example: e5555bcff97f86a4d17209443a6456b5
+        grant_type:    { type: string, enum: [client_credentials] }
+        client_id:     { type: string, example: "3b9ca6fc-9dca-48cf-b762-c963430bb06f" }
+        client_secret: { type: string, example: "f74c33246d3d1f4bb1cdea678c274377" }
 
     TokenResponse:
       type: object
       properties:
-        access_token: { type: string, description: JWT bearer token. }
-        token_type: { type: string, example: bearer }
-        expires_in: { type: integer, example: 3599, description: Seconds until expiry. }
-        scope: { type: string, example: "read write" }
-        sub: { type: string, example: a2801714-0e34-4fbb-be74-30e25c544b73 }
-        jti: { type: string, example: f518893b-b4ca-4ad1-8a7a-dd5c5524d909 }
+        access_token: { type: string }
+        token_type:   { type: string, example: "bearer" }
+        expires_in:   { type: integer, example: 3599 }
+        scope:        { type: string, example: "read write" }
+        sub:          { type: string }
+        jti:          { type: string }
 
-    Gender:
-      type: string
-      enum: [MALE, FEMALE, UNSPECIFIED]
+    OAuthError:
+      type: object
+      properties:
+        error:             { type: string, example: "invalid_client" }
+        error_description: { type: string, example: "Bad Client Credentials" }
 
-    CountryCode:
-      type: string
+    RequestIdResponse:
+      type: object
+      properties:
+        requestId: { type: string, example: "KYC00001" }
+
+    RiskScore:
+      type: object
+      properties:
+        score:                  { type: number, format: float, example: 33.0 }
+        level:                  { type: string, example: "Medium Risk" }
+        rescreeningFreqInMonth: { type: integer, example: 12 }
+        riskSettingId:          { type: integer, example: 7 }
+
+    IndvOnboardingRequest:
+      type: object
+      required: [email, surname, forename]
       description: |
-        ISO 3166-1 alpha-2 country code, with exceptions:
-        - `BU` for Burma
-        - `VAT` for Vatican City
-      pattern: "^[A-Z]{2,3}$"
-      example: US
+        Individual onboarding request. `countryOfResidence`, `placeOfBirth`,
+        `nationality`, `idIssuingCountry`, `industry`, and `occupation` become
+        required if you want webhooks to fire on completion.
+      properties:
+        email:               { type: string, format: email, example: "jack@regtank.com" }
+        surname:             { type: string, example: "Wang" }
+        forename:            { type: string, example: "Jack" }
+        middleName:          { type: string }
+        referenceId:         { type: string, example: "id00000001" }
+        countryOfResidence:  { type: string, example: "US", description: "ISO 3166-1 alpha-2" }
+        placeOfBirth:        { type: string, example: "US" }
+        nationality:         { type: string, example: "US" }
+        idIssuingCountry:    { type: string, example: "US" }
+        dateOfBirth:         { type: string, format: date, example: "1990-04-12" }
+        yearOfBirth:         { type: integer, example: 1990 }
+        gender:              { type: string, enum: [MALE, FEMALE, OTHER] }
+        governmentIdNumber:  { type: string }
+        idType:              { type: string, example: "IDENTITY" }
+        language:            { type: string, example: "en" }
+        bypassIdUpload:      { type: boolean }
+        address:             { type: string }
+        walletAddress:       { type: string }
+        industry:            { type: string, example: "FINANCIAL_SERVICES" }
+        occupation:          { type: string }
+        tags:                { type: array, items: { type: string } }
+        formId:              { type: integer }
+        skipFormPage:        { type: boolean }
+        proofOfAddress:
+          type: object
+          properties:
+            fileName:    { type: string, example: "utility-bill.pdf" }
+            fileContent: { type: string, description: "Base64-encoded file contents" }
+
+    IndvOnboardingResponse:
+      type: object
+      properties:
+        requestId:  { type: string, example: "LD00001" }
+        verifyLink: { type: string, format: uri }
+        expiredIn:  { type: integer, example: 86400 }
+        timestamp:  { type: string, format: date-time }
 
     KycRequest:
       type: object
+      required: [forename, surname]
       description: |
-        Required: at least one of (`surname` + `forename`) **or** `fullname`.
-        All other fields are optional but improve match quality.
+        Individual KYC submission. Either `forename`+`surname` (split) OR
+        `name` (single string) is required.
       properties:
-        surname:
-          type: string
-          maxLength: 100
-          description: Individual's last name. Do not use if `fullname` is provided.
-          example: Smith
-        forename:
-          type: string
-          maxLength: 100
-          description: Individual's first name. Do not use if `fullname` is provided.
-          example: John
-        middlename:
-          type: string
-          maxLength: 100
-          example: Kelvin
-        enableReScreening:
-          type: boolean
-          default: true
-          description: Re-screen this individual when source data is updated.
-        enableOnGoingMonitoring:
-          type: boolean
-          default: false
-          description: Push updates via webhook when status changes (requires webhook configured).
-        dateOfBirth:
-          type: string
-          format: date
-          example: "1977-12-31"
-        yearOfBirth:
-          type: integer
-          minimum: 1753
-          maximum: 9999
-          description: Redundant if `dateOfBirth` is supplied.
-          example: 1977
-        gender: { $ref: "#/components/schemas/Gender" }
-        assignee:
-          type: string
-          format: email
-          maxLength: 100
-          description: Compliance officer assigned to review this case.
-        address1:
-          type: string
-          maxLength: 255
-        address2:
-          type: string
-          maxLength: 255
-        countryOfResidence:
-          $ref: "#/components/schemas/CountryCode"
-        placeOfBirth:
-          $ref: "#/components/schemas/CountryCode"
-        nationality:
-          $ref: "#/components/schemas/CountryCode"
-        idIssuingCountry:
-          $ref: "#/components/schemas/CountryCode"
-        email:
-          type: string
-          format: email
-          maxLength: 100
-        phone:
-          type: string
-          maxLength: 100
-          example: "+1-202-555-0198"
-        governmentIdNumber:
-          type: string
-          maxLength: 100
-        referenceId:
-          type: string
-          maxLength: 100
-          description: |
-            Your own reference for this case (e.g. user email or UUID).
-            Required when ongoing monitoring is enabled, since this is what
-            the webhook uses to match the record back to your user.
-
-    KytRequest:
-      type: object
-      required: [asset, address]
-      properties:
-        asset:
-          type: string
-          enum: [BTC, BCH, BNB, LTC, ETH]
-          example: BTC
-        address:
-          type: string
-          maxLength: 100
-          example: 3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa
-        referenceId:
-          type: string
-          maxLength: 100
-        assignee:
-          type: string
-          format: email
-          maxLength: 100
-        ongoingMonitoring:
-          type: object
-          properties:
-            riskScoreChange: { type: boolean }
-            newTransaction: { type: boolean }
-        webHookResponse:
-          type: boolean
-          default: false
-          description: Push updates via webhook (requires webhook configured).
-
-    KybRequest:
-      type: object
-      required: [entityName]
-      properties:
-        entityName:
-          type: string
-          maxLength: 200
-        registrationNumber:
-          type: string
-          maxLength: 100
-        countryOfRegistration: { $ref: "#/components/schemas/CountryCode" }
-        registrationDate:
-          type: string
-          format: date
-        businessType:
-          type: string
-          maxLength: 100
-        address:
-          type: string
-          maxLength: 255
-        industrySector:
-          type: string
-          maxLength: 100
-        assignee:
-          type: string
-          format: email
-        referenceId:
-          type: string
-          maxLength: 100
-        enableReScreening: { type: boolean, default: true }
-        enableOnGoingMonitoring: { type: boolean, default: false }
-
-    RiskLevel:
-      type: string
-      enum: [LOW, MEDIUM, HIGH]
-
-    Status:
-      type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, REJECTED, EXPIRED]
+        forename:                 { type: string, example: "John" }
+        surname:                  { type: string, example: "Smith" }
+        middleName:               { type: string, example: "Junior" }
+        name:                     { type: string, description: "Single-string alternative to forename+surname" }
+        gender:                   { type: string, enum: [MALE, FEMALE, OTHER] }
+        dateOfBirth:              { type: string, format: date, example: "1980-09-30" }
+        nationality:              { type: string, example: "US", description: "ISO 3166-1 alpha-2" }
+        countryOfResidence:       { type: string, example: "SG" }
+        placeOfBirth:             { type: string, example: "US" }
+        address1:                 { type: string, example: "21 Ang Mo Kio St" }
+        address2:                 { type: string, example: "13-25" }
+        email:                    { type: string, format: email }
+        phone:                    { type: string, example: "+65-98504563" }
+        governmentIdNumber:       { type: string, example: "A4059456" }
+        idIssuingCountry:         { type: string, example: "US" }
+        referenceId:              { type: string, example: "id00000001" }
+        assignee:                 { type: string, format: email }
+        industry:                 { type: string, example: "ACCOUNTING" }
+        occupation:               { type: string, example: "CHIEF_EXECUTIVES_SENIOR_OFFICIALS_AND_LEGISLATORS" }
+        keywords:                 { type: array, items: { type: string } }
+        tags:                     { type: array, items: { type: string } }
+        groupIds:                 { type: array, items: { type: integer } }
+        enableReScreening:        { type: boolean, default: false }
+        enableOnGoingMonitoring:  { type: boolean, default: false }
 
     KycRecord:
       type: object
       properties:
-        systemId: { type: string, example: KYC00001 }
-        referenceId: { type: string, example: john.smith@example.com }
-        surname: { type: string }
-        forename: { type: string }
-        riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        riskScore: { type: integer, minimum: 0, maximum: 100 }
-        status: { $ref: "#/components/schemas/Status" }
-        assignee: { type: string, format: email }
-        hits:
+        requestId:     { type: string }
+        referenceId:   { type: string }
+        messageStatus: { type: string, enum: [PENDING, DONE, FAILED] }
+        status:        { type: string, example: "Score Generated" }
+        assignee:      { type: string }
+        modifiedBy:    { type: string }
+        modifiedOn:    { type: string, format: date-time }
+        createdBy:     { type: string }
+        createdOn:     { type: string, format: date-time }
+        individualRiskScore:
+          $ref: '#/components/schemas/RiskScore'
+        tags:
           type: array
-          items:
-            type: object
-            properties:
-              listType: { type: string, example: SANCTIONS_OFAC }
-              matchScore: { type: integer }
-              entityName: { type: string }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
+          items: { type: string }
 
-    KytRecord:
+    KybRequest:
       type: object
+      required: [businessName]
       properties:
-        systemId: { type: string, example: KYT00001 }
-        referenceId: { type: string }
-        asset: { type: string }
-        address: { type: string }
-        riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        riskScore: { type: integer }
-        status: { $ref: "#/components/schemas/Status" }
-        assignee: { type: string, format: email }
-        createdAt: { type: string, format: date-time }
+        businessName:             { type: string, example: "ACME Corporation Pte Ltd" }
+        businessIdNumber:         { type: string, example: "201712345A", description: "UEN / registration number" }
+        address1:                 { type: string }
+        address2:                 { type: string }
+        sizeOfTheCompany:         { type: string, enum: [MICRO, SMALL, MEDIUM, LARGE] }
+        email:                    { type: string, format: email }
+        phone:                    { type: string }
+        website:                  { type: string, format: uri }
+        referenceId:              { type: string, example: "biz00000001" }
+        natureOfBusiness:         { type: string, example: "FINANCIAL_SERVICES" }
+        companyType:              { type: string, example: "PRIVATE_LIMITED" }
+        countryOfHeadQuarter:     { type: string, example: "SG" }
+        countryOfIncorporation:   { type: string, example: "SG" }
+        dateOfIncorporation:      { type: string, format: date }
+        assignee:                 { type: string, format: email }
+        relationship:             { type: string, enum: [CUSTOMER, SUPPLIER, PARTNER, OTHER] }
+        enableReScreening:        { type: boolean, default: false }
+        enableOnGoingMonitoring:  { type: boolean, default: false }
+        operatingCountry:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        groupIds:
+          type: array
+          items: { type: integer }
 
     KybRecord:
       type: object
       properties:
-        systemId: { type: string, example: KYB003456 }
-        referenceId: { type: string }
-        entityName: { type: string }
-        riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        status: { $ref: "#/components/schemas/Status" }
-        directors:
-          type: array
-          items:
-            type: object
-            properties:
-              name: { type: string }
-              riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        shareholders:
-          type: array
-          items:
-            type: object
-            properties:
-              name: { type: string }
-              ownershipPercent: { type: number }
-
-    WebhookKyc:
-      type: object
-      required: [eventType, systemId, status]
-      properties:
-        eventType:
-          type: string
-          enum: [KYC_CREATED, KYC_UPDATED, KYC_NEW_HIT]
-        systemId: { type: string }
-        referenceId: { type: string }
-        status: { $ref: "#/components/schemas/Status" }
-        riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        riskScore: { type: integer }
-        hitLists:
+        requestId:     { type: string }
+        referenceId:   { type: string }
+        messageStatus: { type: string }
+        status:        { type: string }
+        assignee:      { type: string }
+        modifiedBy:    { type: string }
+        modifiedOn:    { type: string, format: date-time }
+        createdBy:     { type: string }
+        createdOn:     { type: string, format: date-time }
+        individualRiskScore:
+          $ref: '#/components/schemas/RiskScore'
+        tags:
           type: array
           items: { type: string }
-        updatedAt: { type: string, format: date-time }
 
-    WebhookKyt:
+    KytRequest:
       type: object
-      required: [eventType, systemId]
+      required: [address, asset]
       properties:
-        eventType:
+        address:
           type: string
-          enum: [KYT_RISK_CHANGED, KYT_NEW_TRANSACTION]
-        systemId: { type: string }
-        referenceId: { type: string }
-        riskLevel: { $ref: "#/components/schemas/RiskLevel" }
-        riskScore: { type: integer }
-        transaction:
-          type: object
-          properties:
-            hash: { type: string }
-            amount: { type: string }
-            asset: { type: string }
-            timestamp: { type: string, format: date-time }
+          description: Wallet address
+          example: "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa"
+        asset:
+          type: string
+          enum: [BTC, BCH, BNB, LTC, ETH]
+          example: BTC
+        referenceId:
+          type: string
+          description: Required when webhooks are enabled
+          example: "id00000001"
+        assignee:        { type: string, format: email }
+        riskScoreChange: { type: boolean, description: "Webhook me when risk score changes" }
+        newTransaction:  { type: boolean, description: "Webhook me when a new transaction lands" }
 
-    Error:
+    KytRecord:
       type: object
       properties:
-        status: { type: string, example: BAD_REQUEST }
-        message: { type: string, example: INVALID_PARAMETERS }
-        error_code: { type: integer, example: 400 }
-        timestamp: { type: string, format: date-time }
-        path: { type: string }
-        errors:
-          type: object
-          additionalProperties: { type: string }
-          description: Field-by-field validation messages.
+        requestId:   { type: string }
+        referenceId: { type: string }
+        address:     { type: string }
+        asset:       { type: string }
+        riskScore:   { type: string, example: "78.0" }
+        riskLevel:   { type: string, example: "High Risk" }
+        status:      { type: string }
+        modifiedOn:  { type: string, format: date-time }
+        createdOn:   { type: string, format: date-time }
 
-  responses:
-    BadRequest:
-      description: |
-        Invalid request body — at least one field failed validation.
-        Inspect the `errors` map for details.
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Unauthorized:
-      description: |
-        Missing or expired access token. Tokens last **1 hour** —
-        request a new one from `/oauth/token`.
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
+    KycNotification:
+      type: object
+      description: KYC webhook payload (sent to your configured callback URL).
+      properties:
+        requestId:              { type: string }
+        referenceId:            { type: string }
+        riskScore:              { type: string, example: "33.0" }
+        riskLevel:              { type: string, example: "Medium Risk" }
+        status:                 { type: string, example: "Score Generated" }
+        messageStatus:          { type: string, example: "DONE" }
+        possibleMatchCount:     { type: integer }
+        blacklistedMatchCount:  { type: integer }
+        assignee:               { type: string }
+        timestamp:              { type: string, format: date-time }
+        onboardingId:           { type: string }
+        tags:                   { type: array, items: { type: string } }
+
+    KytNotification:
+      type: object
+      description: KYT webhook payload (sent to your configured callback URL).
+      properties:
+        requestId:   { type: string }
+        referenceId: { type: string }
+        address:     { type: string }
+        asset:       { type: string }
+        riskScore:   { type: string }
+        riskLevel:   { type: string }
+        eventType:   { type: string, enum: [NEW_TRANSACTION, RISK_SCORE_CHANGED] }
+        timestamp:   { type: string, format: date-time }
+
+    IndvOnboardingNotification:
+      type: object
+      description: Individual onboarding completion webhook payload.
+      properties:
+        requestId:           { type: string }
+        referenceId:         { type: string }
+        status:              { type: string, enum: [COMPLETED, FAILED, EXPIRED] }
+        authenticityResult:  { type: string, example: "AUTHENTIC" }
+        livenessResult:      { type: string, enum: [PASS, FAIL] }
+        facialMatchScore:    { type: number, format: float }
+        timestamp:           { type: string, format: date-time }
 
 security:
-  - BearerAuth: []
+  - bearerAuth: []

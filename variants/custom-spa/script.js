@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------ *
- *  Regtank Exchange API docs – custom Stripe-style SPA
+ *  Regtank v3 API docs – custom Stripe-style SPA
  *  Pure vanilla JS. No build, no deps.
  * ------------------------------------------------------------------ */
 

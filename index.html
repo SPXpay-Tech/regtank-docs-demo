@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Regtank Exchange API · Documentation experiments</title>
-    <meta name="description" content="Five different ways to render the Regtank Exchange API documentation — Scalar, Redoc, Swagger UI, Stoplight Elements and a hand-built Stripe-style SPA. By SPXpay." />
+    <title>Regtank API · Documentation experiments</title>
+    <meta name="description" content="Five different ways to render the Regtank v3 API documentation — Scalar, Redoc, Swagger UI, Stoplight Elements and a hand-built Stripe-style SPA. Spec mirrored from regtank.gitbook.io. By SPXpay." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔎</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -410,7 +410,7 @@
     <section class="hero">
       <div class="container hero-inner">
         <div class="hero-copy">
-          <span class="pill">Regtank Exchange API · documentation experiments</span>
+          <span class="pill">Regtank v3 API · documentation experiments</span>
           <h1>From a static PDF to five shippable docs sites, <em>side-by-side.</em></h1>
           <p class="lede">
             Five different rendering technologies, the same OpenAPI 3.1 spec.
@@ -418,8 +418,9 @@
             on — instead of arguing about screenshots.
           </p>
           <div class="meta">
-            <div>📦 <strong>13</strong> endpoints · <strong>15</strong> schemas · <strong>2</strong> webhooks</div>
+            <div>📦 <strong>16</strong> endpoints · <strong>16</strong> schemas · <strong>3</strong> webhooks</div>
             <div>🔗 <a href="spec/regtank-exchange.yaml" target="_blank">OpenAPI 3.1 spec</a></div>
+            <div>📚 <a href="https://regtank.gitbook.io/regtank-api-docs/reference/api-reference" target="_blank">Source: regtank.gitbook.io</a></div>
             <div>👤 SPXpay engineering · <strong>2026-05-26</strong></div>
           </div>
         </div>
@@ -430,17 +431,18 @@
           </div>
 <pre><span class="c"># 30-second smoke test</span>
 <span class="k">TOKEN</span>=$(curl -sX POST https://crm-server.regtank.com/oauth/token \
-  -d <span class="s">"grant_type=client_credentials"</span> \
-  -d <span class="s">"client_id=$ID"</span> \
-  -d <span class="s">"client_secret=$SECRET"</span> | jq -r .access_token)
+  -F <span class="s">"grant_type=client_credentials"</span> \
+  -F <span class="s">"client_id=$ID"</span> \
+  -F <span class="s">"client_secret=$SECRET"</span> | jq -r .access_token)
 
-curl -X POST https://$TENANT-server.regtank.com \
-  /v2/kyc/exchange/input \
+curl -X POST https://$PORTAL.regtank.com/v3/kyc/input \
   -H <span class="s">"Authorization: Bearer $TOKEN"</span> \
   -H <span class="s">"Content-Type: application/json"</span> \
-  -d <span class="s">'{"surname":"Smith","forename":"John",
-       "referenceId":"user-001"}'</span>
-<span class="c"># → KYC00121</span></pre>
+  -d <span class="s">'{"forename":"John","surname":"Smith",
+       "dateOfBirth":"1980-09-30",
+       "nationality":"US",
+       "referenceId":"id00000001"}'</span>
+<span class="c"># → {"requestId":"KYC00001"}</span></pre>
         </div>
       </div>
     </section>
