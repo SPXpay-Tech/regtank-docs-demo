@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regtank Exchange API · Redoc</title>
+    <meta name="description" content="Regtank Exchange API — Redoc-rendered docs (demo by SPXpay)" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔎</text></svg>" />
+    <style>
+      :root { --banner-h: 36px; }
+      html, body { margin: 0; }
+      .demo-banner {
+        position: sticky; top: 0; z-index: 100;
+        height: var(--banner-h);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px;
+        background: linear-gradient(90deg, #0d1117 0%, #161b22 100%);
+        color: #c9d1d9;
+        font: 12px/1 ui-sans-serif, -apple-system, system-ui, sans-serif;
+        border-bottom: 1px solid #30363d;
+      }
+      .demo-banner a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+      .demo-banner a:hover { text-decoration: underline; }
+      .demo-banner .pill {
+        background: #d83b40; color: white; padding: 2px 8px;
+        border-radius: 12px; font-weight: 600; margin-right: 8px;
+      }
+      redoc { display: block; min-height: calc(100vh - var(--banner-h)); }
+    </style>
+  </head>
+  <body>
+    <div class="demo-banner">
+      <div>
+        <span class="pill">B · Redoc</span>
+        Regtank Exchange API · industry standard 3-column
+      </div>
+      <div>
+        <a href="../../">← All variants</a>
+        <a href="../../spec/regtank-exchange.yaml" target="_blank">spec.yaml</a>
+      </div>
+    </div>
+
+    <redoc
+      spec-url="../../spec/regtank-exchange.yaml"
+      theme='{"colors":{"primary":{"main":"#d83b40"}},"typography":{"fontFamily":"-apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif","headings":{"fontFamily":"-apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif"}},"sidebar":{"width":"280px"}}'
+      hide-download-button="false"
+      expand-responses="200"
+      json-sample-expand-level="2"
+    ></redoc>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+  </body>
+</html>

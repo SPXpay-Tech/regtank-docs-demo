@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regtank Exchange API · Documentation experiments</title>
+    <meta name="description" content="Five different ways to render the Regtank Exchange API documentation — Scalar, Redoc, Swagger UI, Stoplight Elements and a hand-built Stripe-style SPA. By SPXpay." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔎</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --c-bg: #fafbfc;
+        --c-bg-card: #ffffff;
+        --c-text: #1f2328;
+        --c-text-muted: #59636e;
+        --c-text-soft: #818b98;
+        --c-border: #d1d9e0;
+        --c-border-soft: #e6e8eb;
+        --c-accent: #635bff;
+        --c-accent-2: #6266ff;
+        --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      }
+      *,*::before,*::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--c-bg); color: var(--c-text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+      a { color: var(--c-accent); text-decoration: none; }
+      a:hover { color: var(--c-accent-2); }
+      code { font-family: var(--font-mono); font-size: 0.92em; background: #eef0f3; padding: 1px 5px; border-radius: 4px; }
+
+      .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+      /* ---- Hero ---- */
+      .hero {
+        padding: 72px 0 56px;
+        background:
+          radial-gradient(at 15% 0%, rgba(99,91,255,.08), transparent 50%),
+          radial-gradient(at 90% 30%, rgba(244, 63, 94, .05), transparent 50%);
+        border-bottom: 1px solid var(--c-border-soft);
+      }
+      .hero-inner { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 64px; align-items: center; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(99, 91, 255, 0.08);
+        color: var(--c-accent);
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .02em;
+      }
+      h1 { font-size: 48px; line-height: 1.1; margin: 20px 0 16px; letter-spacing: -0.025em; font-weight: 800; }
+      h1 .highlight { background: linear-gradient(110deg, #635bff, #f43f5e); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .lede { font-size: 18px; line-height: 1.6; color: var(--c-text-muted); margin: 0 0 28px; max-width: 580px; }
+      .meta {
+        display: flex; gap: 24px; flex-wrap: wrap;
+        font-size: 13px;
+        color: var(--c-text-muted);
+        margin-top: 24px;
+      }
+      .meta strong { color: var(--c-text); font-weight: 600; }
+      .meta a { font-weight: 500; }
+
+      .hero-side {
+        background: #0d1117;
+        color: #e6e8eb;
+        border-radius: 14px;
+        padding: 18px 20px;
+        font: 12.5px/1.55 var(--font-mono);
+        box-shadow: 0 12px 40px rgba(99,91,255,.18);
+        overflow: hidden;
+      }
+      .hero-side .head { display: flex; gap: 6px; margin-bottom: 12px; }
+      .hero-side .head span { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+      .hero-side .head .r { background: #ff5f56; }
+      .hero-side .head .y { background: #ffbd2e; }
+      .hero-side .head .g { background: #27c93f; }
+      .hero-side .k { color: #ff7b72; }
+      .hero-side .s { color: #a5d6ff; }
+      .hero-side .c { color: #6e7681; }
+
+      /* ---- Verdict callout ---- */
+      .verdict {
+        max-width: 1180px;
+        margin: 32px auto 8px;
+        background: linear-gradient(135deg, rgba(99,91,255,.06), rgba(244,63,94,.06));
+        border: 1px solid var(--c-border-soft);
+        border-radius: 14px;
+        padding: 24px 28px;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--c-text);
+      }
+      .verdict strong { color: var(--c-text); }
+
+      /* ---- Section heading ---- */
+      .section-head { padding: 56px 0 24px; }
+      .section-head h2 { font-size: 32px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -0.02em; font-weight: 700; }
+      .section-head p { font-size: 16px; color: var(--c-text-muted); max-width: 620px; margin: 0; line-height: 1.55; }
+
+      /* ---- Variant grid ---- */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+        padding-bottom: 48px;
+      }
+      @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .hero-inner { grid-template-columns: 1fr; } }
+
+      .card {
+        background: var(--c-bg-card);
+        border: 1px solid var(--c-border-soft);
+        border-radius: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(0,0,0,.07);
+        border-color: var(--c-border);
+      }
+      .card-thumb {
+        aspect-ratio: 16 / 10;
+        background: #f0f2f5;
+        border-bottom: 1px solid var(--c-border-soft);
+        overflow: hidden;
+        position: relative;
+      }
+      .card-thumb img {
+        width: 100%; height: 100%; object-fit: cover; object-position: top center;
+        display: block;
+      }
+      .card-thumb .ribbon {
+        position: absolute; top: 12px; left: 12px;
+        background: rgba(0,0,0,.78); color: white;
+        padding: 4px 10px; border-radius: 6px;
+        font: 600 11px/1 var(--font);
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .card-body { padding: 20px 22px 22px; flex: 1; display: flex; flex-direction: column; }
+      .card-title { display: flex; align-items: baseline; gap: 12px; margin: 0 0 6px; }
+      .card-title h3 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+      .card-title .tech { color: var(--c-text-soft); font-size: 13px; font-family: var(--font-mono); }
+      .card-desc { color: var(--c-text-muted); font-size: 14px; line-height: 1.55; margin: 4px 0 14px; flex: 1; }
+      .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+      .tag {
+        font-size: 11px;
+        padding: 3px 8px;
+        background: #eef0f3;
+        border-radius: 4px;
+        color: var(--c-text-muted);
+        font-weight: 500;
+      }
+      .tag.green { background: rgba(14,166,114,.1); color: #0e8466; }
+      .tag.purple { background: rgba(99,91,255,.10); color: #4b44d0; }
+      .tag.amber { background: rgba(185,116,0,.10); color: #b97400; }
+      .card-cta { display: flex; gap: 8px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid transparent;
+        cursor: pointer;
+      }
+      .btn.primary { background: var(--c-accent); color: white; }
+      .btn.primary:hover { background: #4b44d0; color: white; }
+      .btn.ghost { background: transparent; border-color: var(--c-border); color: var(--c-text); }
+      .btn.ghost:hover { border-color: var(--c-text-soft); color: var(--c-text); }
+
+      /* ---- Comparison table ---- */
+      .compare {
+        margin: 32px 0;
+        background: var(--c-bg-card);
+        border: 1px solid var(--c-border-soft);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .compare table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+      .compare th, .compare td {
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--c-border-soft);
+        vertical-align: top;
+      }
+      .compare th {
+        background: #f6f8fa;
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: var(--c-text-muted);
+      }
+      .compare tr:last-child td { border-bottom: none; }
+      .compare td.center, .compare th.center { text-align: center; }
+      .compare .yes { color: #0e8466; font-weight: 600; }
+      .compare .no { color: var(--c-text-soft); }
+      .compare .partial { color: #b97400; }
+
+      /* ---- Competitor stacks ---- */
+      .stacks {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin: 24px 0 48px;
+      }
+      @media (max-width: 760px) { .stacks { grid-template-columns: 1fr; } }
+      .stack {
+        background: var(--c-bg-card);
+        border: 1px solid var(--c-border-soft);
+        border-radius: 12px;
+        padding: 18px 20px;
+      }
+      .stack h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+      .stack .who { font-size: 12px; color: var(--c-text-soft); font-family: var(--font-mono); margin-bottom: 8px; }
+      .stack p { margin: 0; font-size: 13.5px; color: var(--c-text-muted); line-height: 1.55; }
+      .stack .star {
+        margin-top: 10px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--c-accent);
+        background: rgba(99,91,255,.08);
+        padding: 3px 8px;
+        border-radius: 4px;
+      }
+
+      footer {
+        margin-top: 72px;
+        padding: 32px 0;
+        border-top: 1px solid var(--c-border-soft);
+        font-size: 13px;
+        color: var(--c-text-muted);
+        text-align: center;
+      }
+      footer p { margin: 6px 0; }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="container hero-inner">
+        <div>
+          <span class="pill">🔎 Regtank Exchange API · documentation experiments</span>
+          <h1>From a static PDF to five shippable docs sites,<br><span class="highlight">side-by-side.</span></h1>
+          <p class="lede">
+            Five different rendering technologies, the same OpenAPI 3.1 spec.
+            Designed so you can open each one, judge by eye, and pick the stack
+            we'll standardise on — instead of arguing about screenshots.
+          </p>
+          <div class="meta">
+            <div>📦 <strong>13</strong> endpoints · <strong>15</strong> schemas · <strong>2</strong> webhooks</div>
+            <div>🔗 <a href="spec/regtank-exchange.yaml" target="_blank">OpenAPI 3.1 spec</a></div>
+            <div>👤 SPXpay engineering · <strong>2026-05-26</strong></div>
+          </div>
+        </div>
+        <div class="hero-side" aria-hidden="true">
+          <div class="head"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+<span class="c">## 30-second smoke test</span>
+<span class="k">TOKEN</span>=$(curl -sX POST https://crm-server.regtank.com/oauth/token \
+  -d <span class="s">"grant_type=client_credentials"</span> \
+  -d <span class="s">"client_id=$ID"</span> \
+  -d <span class="s">"client_secret=$SECRET"</span> | jq -r .access_token)
+
+curl -X POST https://$TENANT-server.regtank.com\
+/v2/kyc/exchange/input \
+  -H <span class="s">"Authorization: Bearer $TOKEN"</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -d '{"surname":"Smith","forename":"John",
+       "referenceId":"user-001"}'
+<span class="c"># → KYC00121</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="container">
+      <div class="verdict">
+        <strong>TL;DR — my recommendation: 🥇 Variant A (Scalar) for the public docs, plus our OpenAPI spec checked into the API repo.</strong>
+        Scalar gives us 90 % of Sumsub-tier polish out of the box, free, self-hosted, and re-rendering it just means pushing a new <code>spec.yaml</code> — no second source of truth. The hand-built SPA (Variant E) shows we can absolutely build a Stripe-grade site if we ever need full design control, but that's months of work. Variant A ships today.
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="section-head">
+        <h2>The five variants</h2>
+        <p>All five are live, all five consume the <a href="spec/regtank-exchange.yaml">same OpenAPI spec</a>. Click through — they're functional, not screenshots.</p>
+      </div>
+
+      <div class="grid">
+        <!-- A: Scalar -->
+        <a class="card" href="variants/scalar/">
+          <div class="card-thumb"><img src="assets/screenshots/scalar.png" alt="Scalar variant preview"><span class="ribbon">A · Scalar</span></div>
+          <div class="card-body">
+            <div class="card-title"><h3>Scalar API Reference</h3><span class="tech">@scalar/api-reference</span></div>
+            <p class="card-desc">Modern alternative to Redoc — same 3-column layout, more polish, integrated AI ("Ask AI") in OSS. ~70 KB CDN, single HTML file, zero build.</p>
+            <div class="card-tags"><span class="tag green">recommended</span><span class="tag">CDN-only</span><span class="tag">dark mode</span><span class="tag">⌘K search</span><span class="tag">Try-It</span></div>
+            <div class="card-cta">
+              <span class="btn primary">Open demo →</span>
+              <a class="btn ghost" href="https://github.com/scalar/scalar" target="_blank" rel="noreferrer noopener" onclick="event.stopPropagation()">GitHub</a>
+            </div>
+          </div>
+        </a>
+
+        <!-- B: Redoc -->
+        <a class="card" href="variants/redoc/">
+          <div class="card-thumb"><img src="assets/screenshots/redoc.png" alt="Redoc variant preview"><span class="ribbon">B · Redoc</span></div>
+          <div class="card-body">
+            <div class="card-title"><h3>Redoc</h3><span class="tech">redoc.standalone.js</span></div>
+            <p class="card-desc">Industry standard — Stripe-style 3-column, used by Twilio, GitHub, Docker. The reference for OpenAPI rendering. Try-It is paid (Redocly Pro), but read-only is free.</p>
+            <div class="card-tags"><span class="tag purple">industry standard</span><span class="tag">CDN-only</span><span class="tag">x-codeSamples</span><span class="tag">no Try-It</span></div>
+            <div class="card-cta">
+              <span class="btn primary">Open demo →</span>
+              <a class="btn ghost" href="https://github.com/Redocly/redoc" target="_blank" rel="noreferrer noopener" onclick="event.stopPropagation()">GitHub</a>
+            </div>
+          </div>
+        </a>
+
+        <!-- C: Swagger UI -->
+        <a class="card" href="variants/swagger-ui/">
+          <div class="card-thumb"><img src="assets/screenshots/swagger-ui.png" alt="Swagger UI variant preview"><span class="ribbon">C · Swagger UI</span></div>
+          <div class="card-body">
+            <div class="card-title"><h3>Swagger UI</h3><span class="tech">swagger-ui-dist</span></div>
+            <p class="card-desc">The original. Functional but visually dated. The advantage: every developer in the world recognises it instantly. Built-in Try-It works against a live server (CORS permitting).</p>
+            <div class="card-tags"><span class="tag amber">dated UX</span><span class="tag green">Try-It</span><span class="tag">universally familiar</span><span class="tag">CDN-only</span></div>
+            <div class="card-cta">
+              <span class="btn primary">Open demo →</span>
+              <a class="btn ghost" href="https://github.com/swagger-api/swagger-ui" target="_blank" rel="noreferrer noopener" onclick="event.stopPropagation()">GitHub</a>
+            </div>
+          </div>
+        </a>
+
+        <!-- D: Stoplight -->
+        <a class="card" href="variants/stoplight/">
+          <div class="card-thumb"><img src="assets/screenshots/stoplight.png" alt="Stoplight Elements variant preview"><span class="ribbon">D · Stoplight Elements</span></div>
+          <div class="card-body">
+            <div class="card-title"><h3>Stoplight Elements</h3><span class="tech">@stoplight/elements</span></div>
+            <p class="card-desc">Stripe-like 3-column, with a more enterprise feel. Tabs for Overview / Schemas / Webhooks built in. Try-It is free.</p>
+            <div class="card-tags"><span class="tag">enterprise feel</span><span class="tag green">Try-It</span><span class="tag">CDN-only</span></div>
+            <div class="card-cta">
+              <span class="btn primary">Open demo →</span>
+              <a class="btn ghost" href="https://github.com/stoplightio/elements" target="_blank" rel="noreferrer noopener" onclick="event.stopPropagation()">GitHub</a>
+            </div>
+          </div>
+        </a>
+
+        <!-- E: Custom SPA -->
+        <a class="card" href="variants/custom-spa/" style="grid-column: span 2;">
+          <div class="card-thumb"><img src="assets/screenshots/custom-spa.png" alt="Custom hand-built SPA preview" style="object-position: center top;"><span class="ribbon">E · Hand-built (no framework)</span></div>
+          <div class="card-body">
+            <div class="card-title"><h3>Stripe-style hand-built SPA</h3><span class="tech">vanilla HTML + CSS + JS · 30 KB total</span></div>
+            <p class="card-desc">A single hand-written index.html + styles.css + script.js. No framework, no build step, no npm dependencies. Dark/light theme, ⌘K search, language tabs (cURL/Python/JS/Java), IntersectionObserver-driven active nav, sticky 3-column layout. The "we can absolutely build a Stripe-grade docs site from scratch" demo.</p>
+            <div class="card-tags"><span class="tag purple">hand-crafted</span><span class="tag">zero dependencies</span><span class="tag green">⌘K search</span><span class="tag green">dark mode</span><span class="tag green">4 languages</span></div>
+            <div class="card-cta">
+              <span class="btn primary">Open demo →</span>
+              <a class="btn ghost" href="https://github.com" onclick="event.stopPropagation()">View source</a>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="section-head">
+        <h2>How they compare</h2>
+        <p>Honest side-by-side. <strong>Bold</strong> rows are the criteria I weighted highest for our use case (replacing a PDF, fast).</p>
+      </div>
+
+      <div class="compare">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th class="center">A · Scalar</th>
+              <th class="center">B · Redoc</th>
+              <th class="center">C · Swagger UI</th>
+              <th class="center">D · Stoplight</th>
+              <th class="center">E · Hand-built</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>OpenAPI 3.1 native</strong></td><td class="center yes">✓</td><td class="center partial">3.0; 3.1 partial</td><td class="center yes">✓ (5.17+)</td><td class="center yes">✓</td><td class="center yes">N/A</td></tr>
+            <tr><td><strong>Build complexity</strong></td><td class="center yes">CDN-only</td><td class="center yes">CDN-only</td><td class="center yes">CDN-only</td><td class="center yes">CDN-only</td><td class="center yes">none</td></tr>
+            <tr><td>Try-It (live API calls)</td><td class="center yes">✓ free</td><td class="center no">paid (Redocly Pro)</td><td class="center yes">✓ free</td><td class="center yes">✓ free</td><td class="center no">—</td></tr>
+            <tr><td>Dark mode</td><td class="center yes">✓</td><td class="center partial">via theme prop</td><td class="center no">—</td><td class="center no">—</td><td class="center yes">✓</td></tr>
+            <tr><td>⌘K / full-text search</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">filter only</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+            <tr><td>Multi-language code samples</td><td class="center yes">x-codeSamples + auto-gen</td><td class="center yes">x-codeSamples</td><td class="center yes">auto-gen</td><td class="center yes">x-codeSamples</td><td class="center yes">hand-written</td></tr>
+            <tr><td><strong>Visual polish (subjective)</strong></td><td class="center yes">9.5 / 10</td><td class="center yes">9 / 10</td><td class="center partial">6 / 10</td><td class="center yes">8 / 10</td><td class="center yes">9 / 10</td></tr>
+            <tr><td><strong>Re-render cost</strong></td><td class="center yes">edit spec.yaml</td><td class="center yes">edit spec.yaml</td><td class="center yes">edit spec.yaml</td><td class="center yes">edit spec.yaml</td><td class="center partial">edit HTML by hand</td></tr>
+            <tr><td>License</td><td class="center">MIT</td><td class="center">MIT (CE) · Premium paid</td><td class="center">Apache-2.0</td><td class="center">Apache-2.0</td><td class="center">SPXpay-owned</td></tr>
+            <tr><td>Stars (GitHub)</td><td class="center">~15 k</td><td class="center">~25 k</td><td class="center">~28 k</td><td class="center">~1.6 k</td><td class="center">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-head">
+        <h2>What our competitors / partners use</h2>
+        <p>I poked at the docs sites we already integrate against. Three real data points:</p>
+      </div>
+      <div class="stacks">
+        <div class="stack">
+          <h4>uqpay (our card issuer)</h4>
+          <div class="who">docs.uqpay.com</div>
+          <p>ReadMe.io — SaaS, ~$300-800/mo per project. HTML pages reference <code>readme-deploy</code> meta tags; spec is hosted on their CDN.</p>
+          <span class="star">≈ Variant A or D, but as SaaS</span>
+        </div>
+        <div class="stack">
+          <h4>SGB (our banking partner)</h4>
+          <div class="who">PDF + hand-written .md files</div>
+          <p>Same situation Regtank is in today — a 70+ page PDF plus a folder of markdown checked into our repo. Slow, error-prone, no search.</p>
+          <span class="star">Same problem we're solving</span>
+        </div>
+        <div class="stack">
+          <h4>Sumsub (老刘 cited as reference)</h4>
+          <div class="who">docs.sumsub.com</div>
+          <p>Custom site — looks bespoke but is actually <strong>ReadMe.io</strong> behind the scenes (same HTML signatures as uqpay). Achievable with our Variant A in a single afternoon.</p>
+          <span class="star">≈ Variant A self-hosted</span>
+        </div>
+      </div>
+
+      <div class="section-head" style="padding-top: 16px;">
+        <h2>What I'd actually ship</h2>
+        <p style="max-width: 760px;">
+          Use Variant A (Scalar) as the public docs at <code>docs.regtank.com</code> — point it at <code>spec/regtank-exchange.yaml</code> checked into the API repo. Generate the spec from server-side annotations (springdoc-openapi on the Java side) so docs always match the deployed code. Keep <code>x-codeSamples</code> in YAML files alongside the spec, version-controlled.
+          The hand-built SPA stays in the repo as a reference — it proves we can deliver full design control if the brand team ever decides we need it.
+        </p>
+      </div>
+    </div>
+
+    <footer>
+      <div class="container">
+        <p>Built end-to-end in one Lark thread · 2026-05-26 · <a href="spec/regtank-exchange.yaml">OpenAPI spec</a> · <a href="https://github.com">source</a></p>
+        <p>“Don't write a 12-page slide deck. Ship five working demos. Pick.”</p>
+      </div>
+    </footer>
+  </body>
+</html>

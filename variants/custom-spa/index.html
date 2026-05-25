@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regtank Exchange API · Docs</title>
+    <meta name="description" content="Regtank Exchange API — hand-built Stripe-style developer docs (demo by SPXpay)" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔎</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="#" class="brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span>Regtank</span>
+          <span class="brand-sep">/</span>
+          <span class="brand-section">Exchange API</span>
+        </a>
+        <nav class="top-nav">
+          <a href="#section-quickstart" class="active">Docs</a>
+          <a href="#section-changelog">Changelog</a>
+          <a href="../../spec/regtank-exchange.yaml" target="_blank">OpenAPI</a>
+          <a href="../../">All variants</a>
+        </nav>
+        <div class="top-actions">
+          <button class="search-btn" id="search-btn" title="Search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Search</span>
+            <kbd>⌘K</kbd>
+          </button>
+          <button class="theme-btn" id="theme-btn" title="Toggle theme">
+            <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <nav>
+          <div class="nav-section">
+            <div class="nav-heading">Get started</div>
+            <a href="#section-quickstart">Quickstart</a>
+            <a href="#section-authentication">Authentication</a>
+            <a href="#section-environments">Environments</a>
+            <a href="#section-errors">Errors</a>
+            <a href="#section-rate-limits">Rate limits</a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-heading">KYC (Acuris)</div>
+            <a href="#op-submitKycV2"><span class="method post">POST</span> Submit (v2)</a>
+            <a href="#op-submitKycV1"><span class="method post">POST</span> Submit (v1)</a>
+            <a href="#op-queryKyc"><span class="method get">GET</span> Query</a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-heading">KYC (Dow Jones)</div>
+            <a href="#op-submitDjKycV2"><span class="method post">POST</span> Submit (v2)</a>
+            <a href="#op-queryDjKyc"><span class="method get">GET</span> Query</a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-heading">KYB</div>
+            <a href="#op-submitKybV2"><span class="method post">POST</span> Submit (v2)</a>
+            <a href="#op-queryKyb"><span class="method get">GET</span> Query</a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-heading">KYT</div>
+            <a href="#op-submitKytV2"><span class="method post">POST</span> Submit (v2)</a>
+            <a href="#op-queryKyt"><span class="method get">GET</span> Query</a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-heading">Webhooks</div>
+            <a href="#section-webhook-overview">Overview</a>
+            <a href="#section-webhook-signature">Signature</a>
+            <a href="#section-webhook-retries">Retries</a>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="content" id="content">
+        <!-- Hero / Quickstart -->
+        <section id="section-quickstart" class="hero">
+          <div class="hero-text">
+            <span class="hero-eyebrow">Regtank for developers</span>
+            <h1>Exchange API</h1>
+            <p class="hero-lede">
+              Submit individuals, businesses, and crypto transactions for compliance
+              screening — and receive results through polling or webhooks.
+            </p>
+            <div class="hero-cta">
+              <a href="#section-authentication" class="btn primary">Get an access token →</a>
+              <a href="../../spec/regtank-exchange.yaml" class="btn secondary" target="_blank">Download OpenAPI spec</a>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span class="hero-card-title">curl · 30-second smoke test</span>
+            </div>
+<pre class="hero-card-body"><span class="c">## 1. Get an access token (valid 1 hour)</span>
+<span class="k">TOKEN=$(curl</span> -sX POST https://crm-server.regtank.com/oauth/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=$REGTANK_CLIENT_ID" \
+  -d "client_secret=$REGTANK_CLIENT_SECRET" \
+  | jq -r .access_token)
+
+<span class="c">## 2. Screen an individual (Acuris KYC v2)</span>
+<span class="k">curl</span> -sX POST https://$TENANT-server.regtank.com/v2/kyc/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "surname": "Smith", "forename": "John",
+        "referenceId": "user-001",
+        "enableOnGoingMonitoring": true }'
+<span class="c"># → KYC00121</span></pre>
+          </div>
+        </section>
+
+        <section id="section-authentication">
+          <h2>Authentication</h2>
+          <p>
+            All Exchange API calls require a JWT bearer token issued via OAuth2 client
+            credentials. Tokens are valid for <strong>1 hour</strong> — refresh proactively.
+          </p>
+          <div class="callout">
+            <strong>Heads up — two hosts.</strong>
+            The token endpoint lives on the OAuth host (<code>crm-server.regtank.com</code>);
+            every other request goes to your per-tenant host
+            (<code>{tenant}-server.regtank.com</code>).
+          </div>
+        </section>
+
+        <section id="section-environments">
+          <h2>Environments</h2>
+          <table class="def-table">
+            <thead><tr><th>Environment</th><th>OAuth host</th><th>Exchange host</th></tr></thead>
+            <tbody>
+              <tr><td>Production</td><td><code>crm-server.regtank.com</code></td><td><code>{tenant}-server.regtank.com</code></td></tr>
+              <tr><td>Staging</td><td><code>crm-staging-server.regtank.com</code></td><td><code>{tenant}-staging-server.regtank.com</code></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="section-errors">
+          <h2>Errors</h2>
+          <p>The Exchange API uses conventional HTTP status codes and a uniform JSON error body.</p>
+          <table class="def-table">
+            <thead><tr><th>Code</th><th>Meaning</th><th>What it usually means</th></tr></thead>
+            <tbody>
+              <tr><td><code>200</code></td><td>OK</td><td>Request accepted; for <code>v2</code> the body holds the <code>systemId</code>.</td></tr>
+              <tr><td><code>400</code></td><td>Bad Request</td><td>Field missing or fails validation. Inspect the <code>errors</code> map.</td></tr>
+              <tr><td><code>401</code></td><td>Unauthorized</td><td>Token missing or expired — request a new one.</td></tr>
+              <tr><td><code>500–511</code></td><td>Server error</td><td>Open a support ticket with the <code>timestamp</code> and <code>path</code> values.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="section-rate-limits">
+          <h2>Rate limits</h2>
+          <p>
+            Per-tenant defaults: <strong>20 req/s</strong> on submit endpoints,
+            <strong>60 req/s</strong> on query endpoints. The window resets every second;
+            bursts of up to 5 req/s above the cap are absorbed.
+          </p>
+          <p>
+            Exceeding the limit returns <code>429 Too Many Requests</code> with a
+            <code>Retry-After</code> header in seconds.
+          </p>
+        </section>
+
+        <!-- KYC v2 Submit -->
+        <article id="op-submitKycV2" class="endpoint">
+          <header>
+            <span class="method post">POST</span>
+            <code class="path">{tenant}-server.regtank.com/v2/kyc/exchange/input</code>
+            <span class="badge recommended">recommended</span>
+          </header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Submit a KYC screening (v2)</h3>
+              <p>
+                Screen an individual against Acuris PEP, sanctions and adverse-media
+                lists. Returns the <code>systemId</code> directly so you can poll
+                or correlate webhook events.
+              </p>
+              <h4>Body parameters</h4>
+              <table class="params">
+                <tbody>
+                  <tr><td><code>surname</code><span class="req">required*</span></td><td>string · max 100 — Individual's last name.</td></tr>
+                  <tr><td><code>forename</code><span class="req">required*</span></td><td>string · max 100 — First name.</td></tr>
+                  <tr><td><code>middlename</code></td><td>string · max 100</td></tr>
+                  <tr><td><code>gender</code></td><td>enum · <code>MALE</code> / <code>FEMALE</code> / <code>UNSPECIFIED</code></td></tr>
+                  <tr><td><code>dateOfBirth</code></td><td>string · ISO date (<code>YYYY-MM-DD</code>)</td></tr>
+                  <tr><td><code>nationality</code></td><td>enum · ISO 3166 country code (e.g. <code>SG</code>, <code>US</code>)</td></tr>
+                  <tr><td><code>countryOfResidence</code></td><td>enum · ISO 3166 country code</td></tr>
+                  <tr><td><code>address1</code> · <code>address2</code></td><td>string · max 255</td></tr>
+                  <tr><td><code>email</code></td><td>string · email format</td></tr>
+                  <tr><td><code>phone</code></td><td>string · max 100</td></tr>
+                  <tr><td><code>governmentIdNumber</code></td><td>string · max 100</td></tr>
+                  <tr><td><code>idIssuingCountry</code></td><td>enum · ISO 3166 country code</td></tr>
+                  <tr><td><code>assignee</code></td><td>email · compliance officer who reviews the case</td></tr>
+                  <tr><td><code>referenceId</code><span class="req opt">webhook</span></td><td>string · max 100 — your own identifier; required when ongoing monitoring is on</td></tr>
+                  <tr><td><code>enableReScreening</code></td><td>boolean · default <code>true</code></td></tr>
+                  <tr><td><code>enableOnGoingMonitoring</code></td><td>boolean · default <code>false</code> — push webhook on changes</td></tr>
+                </tbody>
+              </table>
+              <p class="hint">* You must supply either both <code>surname</code> + <code>forename</code> <em>or</em> a single <code>fullname</code>.</p>
+              <h4>Returns</h4>
+              <p><code>200 OK</code> · text/plain — the assigned <code>systemId</code>, e.g. <code>KYC00121</code>.</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kyc-submit">
+                <button data-lang="curl" class="active">cURL</button>
+                <button data-lang="python">Python</button>
+                <button data-lang="javascript">JavaScript</button>
+                <button data-lang="java">Java</button>
+              </div>
+<pre data-tabset="kyc-submit" data-lang="curl" class="active"><span class="k">curl</span> -X POST https://$TENANT-server.regtank.com/v2/kyc/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "surname": "Smith",
+    "forename": "John",
+    "middlename": "Junior",
+    "gender": "MALE",
+    "dateOfBirth": "1980-09-30",
+    "nationality": "US",
+    "countryOfResidence": "SG",
+    "address1": "21 Ang Mo Kio St",
+    "email": "john.smith@abc.com",
+    "referenceId": "user-001",
+    "enableOnGoingMonitoring": true,
+    "assignee": "admin@regtank.com"
+  }'
+<span class="c"># → KYC00121</span></pre>
+<pre data-tabset="kyc-submit" data-lang="python"><span class="i">import</span> os, requests
+
+token = requests.post(
+    "https://crm-server.regtank.com/oauth/token",
+    data={
+        "grant_type": "client_credentials",
+        "client_id": os.environ["REGTANK_CLIENT_ID"],
+        "client_secret": os.environ["REGTANK_CLIENT_SECRET"],
+    },
+).json()["access_token"]
+
+system_id = requests.post(
+    f"https://{os.environ['TENANT']}-server.regtank.com/v2/kyc/exchange/input",
+    headers={"Authorization": <span class="s">f"Bearer {token}"</span>},
+    json={
+        "surname": "Smith",
+        "forename": "John",
+        "dateOfBirth": "1980-09-30",
+        "nationality": "US",
+        "referenceId": "user-001",
+        "enableOnGoingMonitoring": True,
+    },
+).text
+<span class="c">## "KYC00121"</span></pre>
+<pre data-tabset="kyc-submit" data-lang="javascript"><span class="i">import</span> { fetch } <span class="i">from</span> 'undici';
+
+<span class="k">const</span> tok = <span class="k">await</span> fetch(<span class="s">'https://crm-server.regtank.com/oauth/token'</span>, {
+  method: <span class="s">'POST'</span>,
+  body: <span class="k">new</span> URLSearchParams({
+    grant_type: <span class="s">'client_credentials'</span>,
+    client_id: process.env.REGTANK_CLIENT_ID,
+    client_secret: process.env.REGTANK_CLIENT_SECRET,
+  }),
+}).then(r => r.json());
+
+<span class="k">const</span> systemId = <span class="k">await</span> fetch(
+  <span class="s">`https://${process.env.TENANT}-server.regtank.com/v2/kyc/exchange/input`</span>,
+  {
+    method: <span class="s">'POST'</span>,
+    headers: {
+      <span class="s">'Authorization'</span>: <span class="s">`Bearer ${tok.access_token}`</span>,
+      <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span>,
+    },
+    body: JSON.stringify({
+      surname: <span class="s">'Smith'</span>,
+      forename: <span class="s">'John'</span>,
+      referenceId: <span class="s">'user-001'</span>,
+      enableOnGoingMonitoring: <span class="k">true</span>,
+    }),
+  },
+).then(r => r.text());
+<span class="c">// "KYC00121"</span></pre>
+<pre data-tabset="kyc-submit" data-lang="java">HttpClient http = HttpClient.newHttpClient();
+
+<span class="c">// 1. token</span>
+HttpRequest tok = HttpRequest.newBuilder()
+    .uri(URI.create(<span class="s">"https://crm-server.regtank.com/oauth/token"</span>))
+    .POST(BodyPublishers.ofString(
+        <span class="s">"grant_type=client_credentials"</span>
+        + <span class="s">"&amp;client_id="</span> + System.getenv(<span class="s">"REGTANK_CLIENT_ID"</span>)
+        + <span class="s">"&amp;client_secret="</span> + System.getenv(<span class="s">"REGTANK_CLIENT_SECRET"</span>)))
+    .build();
+String token = JsonParser.parseString(http.send(tok, BodyHandlers.ofString()).body())
+    .getAsJsonObject().get(<span class="s">"access_token"</span>).getAsString();
+
+<span class="c">// 2. submit</span>
+HttpRequest req = HttpRequest.newBuilder()
+    .uri(URI.create(<span class="s">"https://"</span> + tenant + <span class="s">"-server.regtank.com/v2/kyc/exchange/input"</span>))
+    .header(<span class="s">"Authorization"</span>, <span class="s">"Bearer "</span> + token)
+    .header(<span class="s">"Content-Type"</span>, <span class="s">"application/json"</span>)
+    .POST(BodyPublishers.ofString(<span class="s">"""
+        { "surname":"Smith","forename":"John",
+          "referenceId":"user-001",
+          "enableOnGoingMonitoring":true }
+    """</span>))
+    .build();
+String systemId = http.send(req, BodyHandlers.ofString()).body();
+<span class="c">// "KYC00121"</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- KYC v1 Submit -->
+        <article id="op-submitKycV1" class="endpoint">
+          <header>
+            <span class="method post">POST</span>
+            <code class="path">{tenant}-server.regtank.com/v1/kyc/exchange/input</code>
+            <span class="badge legacy">legacy</span>
+          </header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Submit a KYC screening (v1)</h3>
+              <p>Same body as <a href="#op-submitKycV2">v2</a>, but returns only <code>200 OK</code> — you must look the record up later by <code>referenceId</code>.</p>
+              <div class="callout">
+                <strong>Prefer v2.</strong> v2 returns <code>systemId</code> directly, eliminating the back-and-forth.
+              </div>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kyc-v1"><button data-lang="curl" class="active">cURL</button></div>
+<pre data-tabset="kyc-v1" data-lang="curl" class="active"><span class="k">curl</span> -X POST https://$TENANT-server.regtank.com/v1/kyc/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "surname": "Smith", "forename": "John" }'
+<span class="c"># → 200 OK (empty body)</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- KYC Query -->
+        <article id="op-queryKyc" class="endpoint">
+          <header>
+            <span class="method get">GET</span>
+            <code class="path">{tenant}-server.regtank.com/v1/kyc/exchange/query</code>
+          </header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Query a KYC record</h3>
+              <p>Pass <code>systemId</code>, <code>referenceId</code>, or both. At least one is required.</p>
+              <h4>Query parameters</h4>
+              <table class="params">
+                <tbody>
+                  <tr><td><code>systemId</code></td><td>string — e.g. <code>KYC00001</code></td></tr>
+                  <tr><td><code>referenceId</code></td><td>string — your own identifier</td></tr>
+                </tbody>
+              </table>
+              <p class="hint">If you pass both, the result is the intersection (records matching both).</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kyc-query"><button data-lang="curl" class="active">cURL</button><button data-lang="python">Python</button></div>
+<pre data-tabset="kyc-query" data-lang="curl" class="active"><span class="k">curl</span> "https://$TENANT-server.regtank.com/v1/kyc/exchange/query?systemId=KYC00001" \
+  -H "Authorization: Bearer $TOKEN"</pre>
+<pre data-tabset="kyc-query" data-lang="python">records = requests.get(
+    <span class="s">f"https://{tenant}-server.regtank.com/v1/kyc/exchange/query"</span>,
+    headers={<span class="s">"Authorization"</span>: <span class="s">f"Bearer {token}"</span>},
+    params={<span class="s">"systemId"</span>: <span class="s">"KYC00001"</span>},
+).json()
+<span class="c">## [{ "systemId": "KYC00001", "status": "COMPLETED", "riskLevel": "LOW", ... }]</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- DJKYC v2 -->
+        <article id="op-submitDjKycV2" class="endpoint">
+          <header><span class="method post">POST</span><code class="path">{tenant}-server.regtank.com/v2/djkyc/exchange/input</code></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Submit a Dow Jones KYC screening (v2)</h3>
+              <p>Same body as <a href="#op-submitKycV2">Acuris KYC v2</a> but screened against the Dow Jones Risk &amp; Compliance dataset. Returned <code>systemId</code> is prefixed <code>DJKYC</code>.</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="dj"><button data-lang="curl" class="active">cURL</button></div>
+<pre data-tabset="dj" data-lang="curl" class="active"><span class="k">curl</span> -X POST https://$TENANT-server.regtank.com/v2/djkyc/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "surname": "Smith", "forename": "John", "referenceId": "u-001" }'
+<span class="c"># → DJKYC00121</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <article id="op-queryDjKyc" class="endpoint">
+          <header><span class="method get">GET</span><code class="path">{tenant}-server.regtank.com/v1/djkyc/exchange/query</code></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Query a Dow Jones KYC record</h3>
+              <p>Same semantics as <a href="#op-queryKyc">KYC query</a> — <code>systemId</code> is prefixed <code>DJKYC</code>.</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="djq"><button data-lang="curl" class="active">cURL</button></div>
+<pre data-tabset="djq" data-lang="curl" class="active"><span class="k">curl</span> "https://$TENANT-server.regtank.com/v1/djkyc/exchange/query?systemId=DJKYC00001" \
+  -H "Authorization: Bearer $TOKEN"</pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- KYB v2 -->
+        <article id="op-submitKybV2" class="endpoint">
+          <header><span class="method post">POST</span><code class="path">{tenant}-server.regtank.com/v2/kyb/exchange/input</code><span class="badge recommended">recommended</span></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Submit a KYB screening (v2)</h3>
+              <p>Screen a business entity. The response includes UBOs, directors and shareholders pulled from the Acuris corporate registry.</p>
+              <h4>Body parameters</h4>
+              <table class="params">
+                <tbody>
+                  <tr><td><code>entityName</code><span class="req">required</span></td><td>string · max 200</td></tr>
+                  <tr><td><code>registrationNumber</code></td><td>string · max 100 — e.g. UEN, ROC</td></tr>
+                  <tr><td><code>countryOfRegistration</code></td><td>enum · ISO 3166</td></tr>
+                  <tr><td><code>registrationDate</code></td><td>string · ISO date</td></tr>
+                  <tr><td><code>businessType</code></td><td>string</td></tr>
+                  <tr><td><code>industrySector</code></td><td>string</td></tr>
+                  <tr><td><code>referenceId</code></td><td>string</td></tr>
+                  <tr><td><code>enableOnGoingMonitoring</code></td><td>boolean · default <code>false</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kyb"><button data-lang="curl" class="active">cURL</button><button data-lang="python">Python</button></div>
+<pre data-tabset="kyb" data-lang="curl" class="active"><span class="k">curl</span> -X POST https://$TENANT-server.regtank.com/v2/kyb/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entityName": "ACME Capital Pte Ltd",
+    "registrationNumber": "201912345A",
+    "countryOfRegistration": "SG",
+    "referenceId": "acme-001"
+  }'
+<span class="c"># → KYB00212</span></pre>
+<pre data-tabset="kyb" data-lang="python">requests.post(
+    <span class="s">f"https://{tenant}-server.regtank.com/v2/kyb/exchange/input"</span>,
+    headers={<span class="s">"Authorization"</span>: <span class="s">f"Bearer {token}"</span>},
+    json={
+        <span class="s">"entityName"</span>: <span class="s">"ACME Capital Pte Ltd"</span>,
+        <span class="s">"registrationNumber"</span>: <span class="s">"201912345A"</span>,
+        <span class="s">"countryOfRegistration"</span>: <span class="s">"SG"</span>,
+        <span class="s">"referenceId"</span>: <span class="s">"acme-001"</span>,
+    },
+).text  <span class="c"># "KYB00212"</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <article id="op-queryKyb" class="endpoint">
+          <header><span class="method get">GET</span><code class="path">{tenant}-server.regtank.com/v1/kyb/exchange/query</code></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Query a KYB record</h3>
+              <p>Same semantics as KYC query — <code>systemId</code> is prefixed <code>KYB</code>. Response includes the directors and shareholders trees.</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kybq"><button data-lang="curl" class="active">cURL</button></div>
+<pre data-tabset="kybq" data-lang="curl" class="active"><span class="k">curl</span> "https://$TENANT-server.regtank.com/v1/kyb/exchange/query?systemId=KYB003456" \
+  -H "Authorization: Bearer $TOKEN"</pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- KYT v2 -->
+        <article id="op-submitKytV2" class="endpoint">
+          <header><span class="method post">POST</span><code class="path">{tenant}-server.regtank.com/v2/kyt/exchange/input</code><span class="badge recommended">recommended</span></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Submit a KYT screening (v2)</h3>
+              <p>Screen a crypto wallet address against transaction-graph risk data. Supports <code>BTC</code>, <code>BCH</code>, <code>BNB</code>, <code>LTC</code>, <code>ETH</code>.</p>
+              <h4>Body parameters</h4>
+              <table class="params">
+                <tbody>
+                  <tr><td><code>asset</code><span class="req">required</span></td><td>enum · <code>BTC</code> / <code>BCH</code> / <code>BNB</code> / <code>LTC</code> / <code>ETH</code></td></tr>
+                  <tr><td><code>address</code><span class="req">required</span></td><td>string · max 100 — wallet address of the asset</td></tr>
+                  <tr><td><code>referenceId</code></td><td>string · your own identifier</td></tr>
+                  <tr><td><code>assignee</code></td><td>email</td></tr>
+                  <tr><td><code>ongoingMonitoring.riskScoreChange</code></td><td>boolean · alert on risk score change</td></tr>
+                  <tr><td><code>ongoingMonitoring.newTransaction</code></td><td>boolean · alert on new transaction</td></tr>
+                  <tr><td><code>webHookResponse</code></td><td>boolean · push events to your webhook URL</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kyt"><button data-lang="curl" class="active">cURL</button><button data-lang="javascript">JavaScript</button></div>
+<pre data-tabset="kyt" data-lang="curl" class="active"><span class="k">curl</span> -X POST https://$TENANT-server.regtank.com/v2/kyt/exchange/input \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset": "BTC",
+    "address": "3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa",
+    "referenceId": "user-001",
+    "ongoingMonitoring": { "riskScoreChange": true, "newTransaction": true },
+    "webHookResponse": true
+  }'
+<span class="c"># → KYT00011</span></pre>
+<pre data-tabset="kyt" data-lang="javascript"><span class="k">const</span> systemId = <span class="k">await</span> fetch(
+  <span class="s">`https://${tenant}-server.regtank.com/v2/kyt/exchange/input`</span>,
+  {
+    method: <span class="s">'POST'</span>,
+    headers: { Authorization: <span class="s">`Bearer ${token}`</span>, <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+    body: JSON.stringify({
+      asset: <span class="s">'BTC'</span>,
+      address: <span class="s">'3Pv7L9EeYyAMcn7U3tTWyKWxFpVJHfQBTa'</span>,
+      referenceId: <span class="s">'user-001'</span>,
+      ongoingMonitoring: { riskScoreChange: <span class="k">true</span>, newTransaction: <span class="k">true</span> },
+      webHookResponse: <span class="k">true</span>,
+    }),
+  },
+).then(r => r.text());
+<span class="c">// "KYT00011"</span></pre>
+            </aside>
+          </div>
+        </article>
+
+        <article id="op-queryKyt" class="endpoint">
+          <header><span class="method get">GET</span><code class="path">{tenant}-server.regtank.com/v1/kyt/exchange/query</code></header>
+          <div class="endpoint-grid">
+            <div class="endpoint-doc">
+              <h3>Query a KYT record</h3>
+              <p>Returns the most recent risk score, status, and any flagged transactions for the wallet.</p>
+            </div>
+            <aside class="endpoint-code">
+              <div class="code-tabs" data-tabset="kytq"><button data-lang="curl" class="active">cURL</button></div>
+<pre data-tabset="kytq" data-lang="curl" class="active"><span class="k">curl</span> "https://$TENANT-server.regtank.com/v1/kyt/exchange/query?systemId=KYT00011" \
+  -H "Authorization: Bearer $TOKEN"</pre>
+            </aside>
+          </div>
+        </article>
+
+        <!-- Webhooks -->
+        <section id="section-webhook-overview">
+          <h2>Webhooks</h2>
+          <p>
+            Subscribe to push notifications when a KYC / KYB / KYT record changes status,
+            hits a new sanctions list, or shows a new on-chain transaction.
+            Configure your callback URL in the Regtank portal under
+            <strong>Settings → Webhooks</strong>.
+          </p>
+          <h4>Event payload</h4>
+          <pre class="standalone">{
+  "eventType": "KYC_UPDATED",
+  "systemId": "KYC00121",
+  "referenceId": "user-001",
+  "status": "COMPLETED",
+  "riskLevel": "HIGH",
+  "riskScore": 87,
+  "hitLists": ["PEP", "SANCTIONS_OFAC"],
+  "updatedAt": "2026-05-26T10:00:00Z"
+}</pre>
+        </section>
+
+        <section id="section-webhook-signature">
+          <h3>Signature verification</h3>
+          <p>Every webhook ships with two headers:</p>
+          <table class="def-table">
+            <tbody>
+              <tr><td><code>X-Regtank-Timestamp</code></td><td>Unix seconds when the event was sent.</td></tr>
+              <tr><td><code>X-Regtank-Signature</code></td><td><code>HMAC-SHA256(secret, timestamp + "." + raw_body)</code> as hex.</td></tr>
+            </tbody>
+          </table>
+          <p>Reject any webhook whose signature does not match, or whose timestamp is more than <strong>5 minutes</strong> stale.</p>
+          <pre class="standalone"><span class="i">import</span> hmac, hashlib
+
+<span class="k">def</span> <span class="f">verify</span>(secret: bytes, body: bytes, ts: str, sig: str) -> bool:
+    expected = hmac.new(secret, <span class="s">f"{ts}.".encode() + body</span>, hashlib.sha256).hexdigest()
+    <span class="k">return</span> hmac.compare_digest(expected, sig)</pre>
+        </section>
+
+        <section id="section-webhook-retries">
+          <h3>Retry policy</h3>
+          <p>
+            Failed deliveries (non-2xx response or timeout &gt; 10 s) retry with exponential
+            backoff: <strong>1 m, 5 m, 30 m, 2 h, 12 h</strong>. After 5 failures the event
+            is dropped — recover by re-querying the affected records.
+          </p>
+        </section>
+
+        <section id="section-changelog">
+          <h2>Changelog</h2>
+          <ul class="changelog">
+            <li><strong>v1.13</strong> · <em>2026-05-20</em> — Added <code>placeOfBirth</code> on KYC; deprecated <code>yearOfBirth</code> in favour of <code>dateOfBirth</code>.</li>
+            <li><strong>v1.12</strong> · <em>2026-02-15</em> — Webhook signing went live; old IP-allowlist mode removed.</li>
+            <li><strong>v1.11</strong> · <em>2026-01-10</em> — <code>v2/kyc</code>, <code>v2/kyb</code>, <code>v2/kyt</code> endpoints — return <code>systemId</code> in body.</li>
+            <li><strong>v1.10</strong> · <em>2025-11-08</em> — Initial Acuris dataset integration.</li>
+          </ul>
+        </section>
+
+        <footer class="footer">
+          <p>Hand-built single-page docs · no framework, no build step · ~30 KB of HTML+CSS+JS.</p>
+          <p>Spec: <a href="../../spec/regtank-exchange.yaml" target="_blank">regtank-exchange.yaml</a> · Other variants: <a href="../../">index</a>.</p>
+        </footer>
+      </main>
+    </div>
+
+    <div class="search-modal" id="search-modal" hidden>
+      <div class="search-modal-card">
+        <div class="search-modal-input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search-input" type="search" placeholder="Search endpoints, fields, error codes…" autocomplete="off" />
+          <kbd>esc</kbd>
+        </div>
+        <div class="search-results" id="search-results"></div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

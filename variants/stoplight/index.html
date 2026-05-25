@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regtank Exchange API · Stoplight Elements</title>
+    <meta name="description" content="Regtank Exchange API — Stoplight Elements 3-column docs (demo by SPXpay)" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔎</text></svg>" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@stoplight/elements/styles.min.css"
+    />
+    <style>
+      :root { --banner-h: 36px; }
+      html, body { margin: 0; height: 100%; }
+      body { display: flex; flex-direction: column; }
+      .demo-banner {
+        height: var(--banner-h);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px;
+        background: linear-gradient(90deg, #0d1117 0%, #161b22 100%);
+        color: #c9d1d9;
+        font: 12px/1 ui-sans-serif, -apple-system, system-ui, sans-serif;
+        border-bottom: 1px solid #30363d;
+        flex-shrink: 0;
+      }
+      .demo-banner a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+      .demo-banner a:hover { text-decoration: underline; }
+      .demo-banner .pill {
+        background: #f97316; color: white; padding: 2px 8px;
+        border-radius: 12px; font-weight: 600; margin-right: 8px;
+      }
+      elements-api { flex: 1; min-height: 0; display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-banner">
+      <div>
+        <span class="pill">D · Stoplight Elements</span>
+        Regtank Exchange API · Stripe-style 3-column with Try-It
+      </div>
+      <div>
+        <a href="../../">← All variants</a>
+        <a href="../../spec/regtank-exchange.yaml" target="_blank">spec.yaml</a>
+      </div>
+    </div>
+
+    <elements-api
+      apiDescriptionUrl="../../spec/regtank-exchange.yaml"
+      router="hash"
+      layout="sidebar"
+      tryItCredentialsPolicy="omit"
+    ></elements-api>
+
+    <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+  </body>
+</html>
